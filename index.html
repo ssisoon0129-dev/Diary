@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DIARY</title>
+
+<style>
+  :root{
+    --theme:#79aef5;
+    --theme-deep:#4d86d6;
+    --theme-soft:#dceaff;
+    --theme-pale:#f4f8ff;
+    --ink:#49617f;
+    --paper:#fffefb;
+    --line:rgba(74,110,155,.22);
+    --shadow:0 14px 36px rgba(60,85,120,.16);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;font-family:Arial, Helvetica, sans-serif;color:var(--ink)}
+
+  body{
+    min-height:100vh;
+    overflow-x:hidden;
+    background:
+      radial-gradient(circle at 20% 15%, color-mix(in srgb,var(--theme-soft) 70%, white) 0 8%, transparent 22%),
+      radial-gradient(circle at 85% 25%, color-mix(in srgb,var(--theme-soft) 75%, white) 0 10%, transparent 24%),
+      linear-gradient(135deg,#fdfefe 0%,var(--theme-pale) 48%,#ffffff 100%);
+    transition:background .3s ease;
+  }
+
+  /* paper-ish background texture */
+  body:before{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    opacity:.23;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.4) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgba(70,100,140,.025) 0 1px, transparent 1px 6px);
+    mix-blend-mode:multiply;
+  }
+
+  .app{
+    width:min(1580px,96vw);
+    margin:0 auto;
+    padding:24px 18px 34px;
+  }
+
+  .topbar{
+    min-height:76px;
+    display:grid;
+    grid-template-columns:220px 1fr auto;
+    gap:18px;
+    align-items:center;
+  }
+
+  .brand{
+    font-family:Georgia, "Times New Roman", serif;
+    font-style:italic;
+    font-size:40px;
+    letter-spacing:.03em;
+    color:var(--theme-deep);
+    user-select:none;
+  }
+
+  .toolbar{
+    justify-self:center;
+    display:flex;
+    gap:9px;
+    flex-wrap:wrap;
+  }
+
+  button,.tool{
+    border:1px solid color-mix(in srgb,var(--theme) 58%, white);
+    background:rgba(255,255,255,.72);
+    color:var(--theme-deep);
+    height:38px;
+    padding:0 15px;
+    border-radius:9px;
+    box-shadow:0 3px 10px rgba(75,105,145,.07);
+    cursor:pointer;
+    font-size:12px;
+    letter-spacing:.08em;
+  }
+
+  button:hover,.tool:hover{
+    background:var(--theme-soft);
+  }
+
+  .theme-panel{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:rgba(255,255,255,.68);
+  }
+
+  .theme-label{
+    font-size:11px;
+    letter-spacing:.12em;
+    color:#71829a;
+  }
+
+  .swatch{
+    width:23px;height:23px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.9);
+    outline:1px solid rgba(80,100,130,.18);
+    cursor:pointer;
+  }
+
+  .color-input{
+    width:28px;height:28px;border:0;background:transparent;padding:0;cursor:pointer;
+  }
+
+  .workspace{
+    display:grid;
+    grid-template-columns:235px minmax(680px,1fr) 250px;
+    gap:18px;
+    align-items:start;
+  }
+
+  .panel{
+    background:rgba(255,255,255,.72);
+    border:1px solid var(--line);
+    box-shadow:var(--shadow);
+    border-radius:14px;
+    backdrop-filter:blur(8px);
+    overflow:hidden;
+  }
+
+  .panel-head{
+    padding:13px 16px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.12em;
+  }
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    padding:12px;
+    flex-wrap:wrap;
+  }
+
+  .tab{
+    font-size:10px;
+    border:1px solid var(--line);
+    color:#73839a;
+    padding:7px 8px;
+    border-radius:8px;
+    background:#fff;
+  }
+
+  .tab.active{
+    color:var(--theme-deep);
+    background:var(--theme-soft);
+    border-color:color-mix(in srgb,var(--theme) 55%,white);
+  }
+
+  .sticker-grid{
+    padding:0 12px 14px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:9px;
+  }
+
+  .sticker{
+    aspect-ratio:1;
+    display:grid;
+    place-items:center;
+    border-radius:9px;
+    background:
+      linear-gradient(145deg,#fff, color-mix(in srgb,var(--theme-soft) 55%,white));
+    border:1px solid var(--line);
+    font-size:23px;
+    cursor:grab;
+    user-select:none;
+  }
+
+  .accordion{
+    border-top:1px solid var(--line);
+    padding:13px 15px;
+    display:flex;
+    justify-content:space-between;
+    font-size:11px;
+    letter-spacing:.08em;
+  }
+
+  .book-stage{
+    min-height:760px;
+    position:relative;
+    border-radius:20px;
+    padding:32px 28px;
+    background:
+      linear-gradient(145deg,
+        color-mix(in srgb,var(--theme-soft) 72%,white),
+        color-mix(in srgb,var(--theme-pale) 84%,white));
+    border:1px solid color-mix(in srgb,var(--theme) 30%,white);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+
+  .book-stage:before,
+  .book-stage:after{
+    content:"";
+    position:absolute;
+    border:1px dashed color-mix(in srgb,var(--theme) 38%,transparent);
+    border-radius:28px;
+    width:180px;height:180px;
+    opacity:.35;
+  }
+  .book-stage:before{left:-50px;top:-60px;transform:rotate(18deg)}
+  .book-stage:after{right:-45px;bottom:-70px;transform:rotate(-18deg)}
+
+  .book{
+    width:100%;
+    max-width:900px;
+    margin:0 auto;
+    min-height:650px;
+    display:grid;
+    grid-template-columns:1fr 30px 1fr;
+    position:relative;
+    filter:drop-shadow(0 18px 18px rgba(70,85,120,.14));
+  }
+
+  .page{
+    position:relative;
+    background:
+      repeating-linear-gradient(0deg,transparent 0 26px, rgba(90,120,155,.055) 27px),
+      var(--paper);
+    border:1px solid rgba(120,130,150,.18);
+    overflow:hidden;
+  }
+
+  .page.left{border-radius:18px 4px 4px 18px}
+  .page.right{border-radius:4px 18px 18px 4px}
+
+  .page:after{
+    content:"DROP / PLACE OBJECTS HERE";
+    position:absolute;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    color:rgba(83,110,145,.20);
+    font-size:11px;
+    letter-spacing:.25em;
+    white-space:nowrap;
+  }
+
+  .rings{
+    position:relative;
+    z-index:5;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-around;
+    align-items:center;
+    padding:38px 0;
+  }
+
+  .ring{
+    width:44px;height:18px;
+    border:5px solid #bac4d0;
+    border-left-color:#ecf0f4;
+    border-radius:50%;
+    background:transparent;
+    box-shadow:0 2px 3px rgba(0,0,0,.10);
+  }
+
+  .sample-note{
+    position:absolute;
+    left:38px;top:35px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    background:color-mix(in srgb,var(--theme-soft) 35%,white);
+    transform:rotate(-3deg);
+    font-family:"Courier New",monospace;
+    font-size:12px;
+    letter-spacing:.08em;
+    z-index:2;
+  }
+
+  .placeholder-photo{
+    position:absolute;
+    width:43%;
+    aspect-ratio:4/5;
+    right:35px;
+    top:78px;
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb,var(--theme-soft) 50%,white),
+        color-mix(in srgb,var(--theme) 26%,#e8eef7));
+    border:10px solid white;
+    box-shadow:0 8px 15px rgba(65,75,100,.15);
+    transform:rotate(3deg);
+    display:grid;
+    place-items:center;
+    color:rgba(72,95,125,.45);
+    font-size:11px;
+    letter-spacing:.2em;
+    z-index:2;
+  }
+
+  .fixed-polaroid{
+    margin-top:110px;
+    background:white;
+    border:1px solid rgba(100,120,150,.18);
+    box-shadow:var(--shadow);
+    padding:11px 11px 18px;
+    transform:rotate(2deg);
+    opacity:0;
+    animation:riseIn 1s cubic-bezier(.18,.83,.3,1) .35s forwards;
+  }
+
+  .fixed-polaroid-media{
+    aspect-ratio:4/5;
+    display:grid;
+    place-items:center;
+    background:
+      linear-gradient(145deg,#e8eff9,var(--theme-soft));
+    color:rgba(60,90,130,.42);
+    font-size:11px;
+    letter-spacing:.15em;
+    overflow:hidden;
+  }
+
+  .fixed-polaroid-media img{
+    width:100%;height:100%;object-fit:cover;display:block;
+  }
+
+  .fixed-polaroid-caption{
+    padding:13px 4px 0;
+    font-family:Georgia,serif;
+    font-style:italic;
+    color:var(--theme-deep);
+    text-align:center;
+  }
+
+  @keyframes riseIn{
+    from{opacity:0;transform:translateY(80px) rotate(2deg)}
+    to{opacity:1;transform:translateY(0) rotate(2deg)}
+  }
+
+  .hint{
+    margin-top:18px;
+    padding:14px 15px;
+    border:1px dashed var(--line);
+    border-radius:12px;
+    font-size:11px;
+    line-height:1.7;
+    background:rgba(255,255,255,.45);
+    color:#71829a;
+  }
+
+  @media (max-width:1180px){
+    .workspace{grid-template-columns:200px 1fr}
+    .right-rail{display:none}
+  }
+
+  @media (max-width:800px){
+    .topbar{grid-template-columns:1fr;justify-items:center}
+    .workspace{grid-template-columns:1fr}
+    .left-panel{display:none}
+    .book-stage{min-height:580px;padding:18px 10px}
+    .book{min-height:520px;grid-template-columns:1fr 20px 1fr}
+    .brand{font-size:34px}
+  }
+</style>
+</head>
+
+<body>
+  <main class="app">
+
+    <header class="topbar">
+      <div class="brand">DIARY</div>
+
+      <div class="toolbar">
+        <button type="button">STICKER</button>
+        <button type="button">PHOTO</button>
+        <button type="button">POLAROID</button>
+        <button type="button">KEYRING</button>
+        <button type="button">TEXT</button>
+      </div>
+
+      <div class="theme-panel">
+        <span class="theme-label">THEME</span>
+
+        <button class="swatch" type="button" data-color="#79aef5"
+          style="background:#79aef5" aria-label="blue"></button>
+        <button class="swatch" type="button" data-color="#f39abb"
+          style="background:#f39abb" aria-label="pink"></button>
+        <button class="swatch" type="button" data-color="#a990e8"
+          style="background:#a990e8" aria-label="purple"></button>
+        <button class="swatch" type="button" data-color="#8fc9ad"
+          style="background:#8fc9ad" aria-label="green"></button>
+        <button class="swatch" type="button" data-color="#e2b878"
+          style="background:#e2b878" aria-label="beige"></button>
+
+        <input id="customColor" class="color-input" type="color" value="#79aef5" title="Custom theme color">
+      </div>
+    </header>
+
+    <section class="workspace">
+
+      <!-- 왼쪽 편집 도구 -->
+      <aside class="panel left-panel">
+        <div class="panel-head">
+          <span>STICKER</span>
+          <span>×</span>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active">ALL</div>
+          <div class="tab">DECOR</div>
+          <div class="tab">ICON</div>
+          <div class="tab">MEMO</div>
+        </div>
+
+        <!-- 샘플 자리. 추후 사용자가 등록한 스티커 썸네일로 교체 -->
+        <div class="sticker-grid">
+          <div class="sticker">♡</div>
+          <div class="sticker">☆</div>
+          <div class="sticker">✿</div>
+          <div class="sticker">୨୧</div>
+          <div class="sticker">☁</div>
+          <div class="sticker">✦</div>
+          <div class="sticker">♬</div>
+          <div class="sticker">⌁</div>
+          <div class="sticker">❄</div>
+          <div class="sticker">✉</div>
+          <div class="sticker">☾</div>
+          <div class="sticker">⊹</div>
+        </div>
+
+        <div class="accordion"><span>POLAROID</span><span>＋</span></div>
+        <div class="accordion"><span>KEYRING</span><span>＋</span></div>
+        <div class="accordion"><span>BACKGROUND</span><span>＋</span></div>
+      </aside>
+
+      <!-- 중앙 다이어리 -->
+      <section class="book-stage" id="bookStage">
+        <div class="book">
+
+          <div class="page left" id="leftPage">
+            <div class="sample-note">your diary<br>your story.</div>
+            <div class="placeholder-photo">PHOTO</div>
+          </div>
+
+          <div class="rings" aria-hidden="true">
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+          </div>
+
+          <div class="page right" id="rightPage"></div>
+
+        </div>
+      </section>
+
+      <!-- 오른쪽 고정 연출 -->
+      <aside class="right-rail">
+        <div class="fixed-polaroid">
+          <div class="fixed-polaroid-media" id="gifFrame">
+            FIXED GIF
+            <!--
+            실제 GIF 사용 시 위 글자를 지우고 아래처럼 넣으면 됨.
+            <img src="your-animation.gif" alt="">
+            -->
+          </div>
+          <div class="fixed-polaroid-caption">memory ♡</div>
+        </div>
+
+        <div class="hint">
+          이 영역은 사용자 편집 대상에서 제외된 고정 연출 영역.<br>
+          GIF 폴라로이드는 페이지 진입 시 아래에서 위로 페이드인.
+        </div>
+      </aside>
+
+    </section>
+  </main>
+
+<script>
+  const root = document.documentElement;
+
+  function hexToRgb(hex){
+    hex = hex.replace("#","");
+    if(hex.length === 3) hex = hex.split("").map(v => v + v).join("");
+    const n = parseInt(hex,16);
+    return {
+      r:(n >> 16) & 255,
+      g:(n >> 8) & 255,
+      b:n & 255
+    };
+  }
+
+  function mixWithWhite(hex, amount){
+    const {r,g,b}=hexToRgb(hex);
+    const mix=v => Math.round(v + (255-v)*amount);
+    return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+  }
+
+  function darken(hex, amount){
+    const {r,g,b}=hexToRgb(hex);
+    const d=v => Math.max(0,Math.round(v*(1-amount)));
+    return `rgb(${d(r)},${d(g)},${d(b)})`;
+  }
+
+  function setTheme(color){
+    root.style.setProperty("--theme", color);
+    root.style.setProperty("--theme-deep", darken(color,.22));
+    root.style.setProperty("--theme-soft", mixWithWhite(color,.68));
+    root.style.setProperty("--theme-pale", mixWithWhite(color,.90));
+    document.getElementById("customColor").value = color;
+  }
+
+  document.querySelectorAll(".swatch").forEach(btn=>{
+    btn.addEventListener("click",()=>setTheme(btn.dataset.color));
+  });
+
+  document.getElementById("customColor").addEventListener("input",e=>{
+    setTheme(e.target.value);
+  });
+</script>
+</body>
+</html>
