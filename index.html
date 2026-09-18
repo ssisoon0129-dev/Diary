@@ -1,534 +1,753 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>DIARY</title>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diary ⋆ 다이어리 꾸미기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Jua&family=Gowun+Dodum&family=Gaegu:wght@400;700&family=Nanum+Pen+Script&family=Dongle:wght@400;700&family=Gamja+Flower&family=East+Sea+Dokdo&family=Poor+Story&family=Do+Hyeon&family=Song+Myung&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-  :root{
-    --theme:#79aef5;
-    --theme-deep:#4d86d6;
-    --theme-soft:#dceaff;
-    --theme-pale:#f4f8ff;
-    --ink:#49617f;
-    --paper:#fffefb;
-    --line:rgba(74,110,155,.22);
-    --shadow:0 14px 36px rgba(60,85,120,.16);
+:root{
+  --paper:#faf7f0;
+  --paper-panel:#f3ede0;
+  --paper-panel-deep:#e9dfc9;
+  --ink:#585f74;
+  --ink-soft:#94978f;
+  --ink-soft2:#9a9787;
+  --line:#ddd3ba;
+  --theme:#aec6ea;
+  --theme-deep: color-mix(in srgb, var(--theme) 72%, #4a5c86);
+  --theme-soft: color-mix(in srgb, var(--theme) 28%, white);
+  --accent:#3469c3;
+  --accent-soft:#e9f0fb;
+  --metal:#b7bdc7;
+  --metal-dark:#8b929e;
+  --shadow:0 20px 44px rgba(63,66,52,.18);
+  --shadow-sm:0 8px 18px rgba(63,66,52,.14);
+  --r-lg:26px;
+  --r-md:16px;
+  --r-sm:10px;
+  --font-display:'Caveat',cursive;
+  --font-hand:'Gaegu','Nanum Pen Script',cursive;
+  --font-ui:'Gowun Dodum','Noto Sans KR',sans-serif;
+  color-scheme:light;
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --paper:#2b2a26;
+    --paper-panel:#332f28;
+    --paper-panel-deep:#3d382e;
+    --ink:#e7e2d6;
+    --ink-soft:#b7b2a2;
+    --ink-soft2:#a6a290;
+    --line:#4d4738;
+    --accent-soft:#233450;
   }
+}
+:root[data-theme="dark"]{
+  --paper:#2b2a26;
+  --paper-panel:#332f28;
+  --paper-panel-deep:#3d382e;
+  --ink:#e7e2d6;
+  --ink-soft:#b7b2a2;
+  --ink-soft2:#a6a290;
+  --line:#4d4738;
+  --accent-soft:#233450;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  background:
+    radial-gradient(circle at 16% 8%, color-mix(in srgb, var(--theme) 16%, transparent), transparent 46%),
+    radial-gradient(circle at 86% 92%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 40%),
+    var(--paper);
+  font-family:var(--font-ui);
+  color:var(--ink);
+  overflow-x:hidden;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}}
 
-  *{box-sizing:border-box}
-  html,body{margin:0;min-height:100%;font-family:Arial, Helvetica, sans-serif;color:var(--ink)}
+.app{width:min(1440px,97vw);margin:0 auto;padding:22px 16px 34px}
 
-  body{
-    min-height:100vh;
-    overflow-x:hidden;
-    background:
-      radial-gradient(circle at 20% 15%, color-mix(in srgb,var(--theme-soft) 70%, white) 0 8%, transparent 22%),
-      radial-gradient(circle at 85% 25%, color-mix(in srgb,var(--theme-soft) 75%, white) 0 10%, transparent 24%),
-      linear-gradient(135deg,#fdfefe 0%,var(--theme-pale) 48%,#ffffff 100%);
-    transition:background .3s ease;
-  }
+/* ---------- header ---------- */
+.header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .word{
+  font-family:var(--font-display);font-size:46px;font-weight:700;color:var(--theme-deep);line-height:1;
+  position:relative;-webkit-text-stroke:5px #fff;paint-order:stroke fill;
+  filter:drop-shadow(0 3px 3px rgba(60,60,40,.22));
+}
+.brand .word::before{
+  content:"Diary";position:absolute;left:0;top:0;z-index:-1;color:transparent;
+  -webkit-text-stroke:11px var(--theme-deep);paint-order:stroke fill;
+}
+.brand .sub{font-size:12.5px;color:var(--ink-soft);letter-spacing:.02em}
 
-  /* paper-ish background texture */
-  body:before{
-    content:"";
-    position:fixed; inset:0;
-    pointer-events:none;
-    opacity:.23;
-    background-image:
-      repeating-linear-gradient(0deg, rgba(255,255,255,.4) 0 1px, transparent 1px 4px),
-      repeating-linear-gradient(90deg, rgba(70,100,140,.025) 0 1px, transparent 1px 6px);
-    mix-blend-mode:multiply;
-  }
+.topbar{
+  display:flex;align-items:center;gap:4px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--theme) 92%, white), var(--theme));
+  border-radius:999px;padding:7px 9px;box-shadow:var(--shadow-sm);
+  flex:1;min-width:300px;max-width:640px;margin-left:auto;position:relative;
+}
+.tbtn{border:0;background:transparent;color:#fff;border-radius:999px;padding:9px 15px;font-size:14.5px;display:flex;align-items:center;gap:6px;transition:background .15s}
+.tbtn:hover{background:rgba(255,255,255,.22)}
+.tbtn:disabled{opacity:.4;cursor:default}
+.tbtn:disabled:hover{background:transparent}
+.tbtn svg{width:17px;height:17px}
+.tb-div{width:1px;align-self:stretch;margin:6px 2px;background:rgba(255,255,255,.4)}
+.tb-spacer{flex:1}
+.tbtn.primary{background:rgba(255,255,255,.9);color:var(--theme-deep);font-weight:600}
+.tbtn.primary:hover{background:#fff}
 
-  .app{
-    width:min(1580px,96vw);
-    margin:0 auto;
-    padding:24px 18px 34px;
-  }
+.export-wrap{position:relative}
+.export-menu{
+  position:absolute;right:0;top:calc(100% + 10px);z-index:80;min-width:200px;
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:8px;box-shadow:var(--shadow);display:none;
+}
+.export-menu.show{display:block}
+.export-menu button{display:flex;width:100%;text-align:left;border:0;background:transparent;padding:10px 11px;border-radius:9px;gap:8px;align-items:center;font-size:14px}
+.export-menu button:hover{background:var(--accent-soft)}
+.export-menu .hint{font-size:11px;color:var(--ink-soft);padding:4px 11px 2px}
 
-  .topbar{
-    min-height:76px;
-    display:grid;
-    grid-template-columns:220px 1fr auto;
-    gap:18px;
-    align-items:center;
-  }
+/* ---------- workspace ---------- */
+.workspace{display:grid;grid-template-columns:284px 1fr;gap:18px;align-items:start}
 
-  .brand{
-    font-family:Georgia, "Times New Roman", serif;
-    font-style:italic;
-    font-size:40px;
-    letter-spacing:.03em;
-    color:var(--theme-deep);
-    user-select:none;
-  }
+.sidebar{
+  background:var(--paper-panel);border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-sm);overflow:hidden;
+}
+.section{border-bottom:1px solid var(--line)}
+.section:last-child{border-bottom:0}
+.section-head{
+  width:100%;border:0;background:transparent;display:flex;align-items:center;justify-content:space-between;
+  padding:15px 18px;font-size:14.5px;font-weight:500;color:var(--ink);
+}
+.section-head .tag{display:flex;align-items:center;gap:9px}
+.section-head .tag svg{width:17px;height:17px;color:var(--theme-deep)}
+.chev{transition:transform .25s;color:var(--ink-soft)}
+.section.open .chev{transform:rotate(180deg)}
+.section-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s ease}
+.section-body>div{overflow:hidden}
+.section.open .section-body{grid-template-rows:1fr}
+.section-inner{padding:2px 16px 18px}
 
-  .toolbar{
-    justify-self:center;
-    display:flex;
-    gap:9px;
-    flex-wrap:wrap;
-  }
+.asset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.asset{
+  aspect-ratio:1;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper);
+  display:grid;place-items:center;color:var(--theme-deep);position:relative;transition:transform .12s,box-shadow .12s;
+}
+.asset:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+.asset svg{width:60%;height:60%}
+.asset img{width:100%;height:100%;object-fit:contain;border-radius:inherit}
+.asset.add{border-style:dashed;color:var(--ink-soft);font-size:22px;font-weight:300}
 
-  button,.tool{
-    border:1px solid color-mix(in srgb,var(--theme) 58%, white);
-    background:rgba(255,255,255,.72);
-    color:var(--theme-deep);
-    height:38px;
-    padding:0 15px;
-    border-radius:9px;
-    box-shadow:0 3px 10px rgba(75,105,145,.07);
-    cursor:pointer;
-    font-size:12px;
-    letter-spacing:.08em;
-  }
+.field{margin-top:11px}
+.field label{display:block;font-size:11.5px;color:var(--ink-soft);margin-bottom:5px}
+textarea,select,input[type=text]{
+  width:100%;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper);
+  padding:9px 10px;font-size:13.5px;color:var(--ink);
+}
+textarea{resize:vertical;min-height:60px}
+.row2{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-radius:9px;padding:2px;background:var(--paper)}
+.btn{
+  border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:10px 14px;
+  font-size:13.5px;font-weight:500;display:inline-flex;gap:6px;align-items:center;justify-content:center;
+  width:100%;transition:.15s;
+}
+.btn:hover{border-color:var(--theme-deep);color:var(--theme-deep)}
+.btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.solid:hover{background:color-mix(in srgb, var(--accent) 88%, black);color:#fff}
+.note{font-size:11px;line-height:1.6;color:var(--ink-soft);margin:10px 1px 0}
 
-  button:hover,.tool:hover{
-    background:var(--theme-soft);
-  }
+.theme-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid #fff;outline:1px solid var(--line);flex:none;transition:transform .12s}
+.swatch:hover{transform:scale(1.12)}
+.swatch.custom{display:grid;place-items:center;padding:0;overflow:hidden}
+.swatch.custom input{width:140%;height:140%;border:0;padding:0;cursor:pointer}
 
-  .theme-panel{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    padding:8px 10px;
-    border:1px solid var(--line);
-    border-radius:12px;
-    background:rgba(255,255,255,.68);
-  }
+/* ---------- stage ---------- */
+.stage-wrap{position:relative}
+.stage{
+  position:relative;height:calc(100vh - 158px);min-height:560px;border-radius:var(--r-lg);
+  background:
+    radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--theme) 20%, transparent), transparent 45%),
+    var(--paper-panel);
+  border:1px solid var(--line);overflow:hidden;
+}
+.ambient{position:absolute;z-index:2;color:var(--theme-deep);opacity:.55;pointer-events:none}
+.ambient svg{width:100%;height:100%;display:block}
+.diary{position:absolute;left:6%;right:6%;top:8%;bottom:8%;transform:rotate(-3deg)}
+.mat{position:absolute;inset:0;background:var(--theme);border-radius:28px;box-shadow:var(--shadow);z-index:1}
+.page{position:absolute;top:6%;bottom:6%;width:43%;background:#fffdf8;border-radius:20px;
+  box-shadow:0 10px 18px -10px rgba(50,45,25,.35), inset 0 0 0 1px rgba(255,255,255,.6);z-index:5}
+.page.left{left:4%}
+.page.right{right:4%}
 
-  .theme-label{
-    font-size:11px;
-    letter-spacing:.12em;
-    color:#71829a;
-  }
+.ring-stack{position:absolute;left:50%;width:52px;transform:translateX(-50%);z-index:30;pointer-events:none;
+  filter:drop-shadow(0 3px 3px rgba(0,0,0,.25))}
+.ring-stack.r1{top:27%}
+.ring-stack.r2{top:65%}
+.ring-stack svg{display:block;width:100%;height:auto}
 
-  .swatch{
-    width:23px;height:23px;border-radius:50%;
-    border:2px solid rgba(255,255,255,.9);
-    outline:1px solid rgba(80,100,130,.18);
-    cursor:pointer;
-  }
+.canvas{position:absolute;inset:0;z-index:20}
 
-  .color-input{
-    width:28px;height:28px;border:0;background:transparent;padding:0;cursor:pointer;
-  }
+.page-logo{position:absolute;left:-1%;top:-9%;z-index:22;pointer-events:none;max-width:78%;transform:rotate(-5deg)}
+.page-logo .word{
+  font-family:'Jua',var(--font-hand);font-size:74px;font-weight:400;color:var(--theme-deep);line-height:1.04;
+  position:relative;display:inline-block;pointer-events:auto;cursor:text;outline:0;white-space:normal;
+  filter:drop-shadow(0 5px 6px rgba(60,60,40,.22));
+}
+.page-logo .word::before,.page-logo .word::after{
+  content:attr(data-text);position:absolute;left:0;top:0;color:transparent;paint-order:stroke fill;pointer-events:none;
+}
+.page-logo .word::after{-webkit-text-stroke:15px var(--theme-deep);z-index:-2}
+.page-logo .word::before{-webkit-text-stroke:10px #fff;z-index:-1}
+.obj{position:absolute;touch-action:none;user-select:none;cursor:grab;transform-origin:center}
+.obj:active{cursor:grabbing}
+.obj .delete{
+  display:none;position:absolute;right:-11px;top:-11px;width:24px;height:24px;border:2px solid #fff;
+  border-radius:50%;background:var(--accent);color:#fff;z-index:6;font-size:13px;line-height:1;align-items:center;justify-content:center;
+}
+.obj .rotate-handle{
+  display:none;position:absolute;left:50%;top:-30px;width:16px;height:16px;transform:translateX(-50%);
+  border-radius:50%;background:#fff;border:2px solid var(--accent);z-index:6;cursor:grab;
+}
+.obj .rotate-handle:before{content:"";position:absolute;left:50%;top:100%;width:1px;height:16px;background:var(--accent);transform:translateX(-50%)}
+.obj.selected{outline:2px dashed var(--accent);outline-offset:6px;border-radius:4px}
+.obj.selected .delete,.obj.selected .rotate-handle{display:flex}
 
-  .workspace{
-    display:grid;
-    grid-template-columns:235px minmax(680px,1fr) 250px;
-    gap:18px;
-    align-items:start;
-  }
+.sticker-object svg,.sticker-object img{
+  width:100%;height:100%;display:block;pointer-events:none;object-fit:contain;
+  filter:drop-shadow(0 3px 3px rgba(50,45,25,.22));
+}
+/* lighter preview of the same outline inside the sidebar tray */
+#stickerGrid .asset svg{filter:drop-shadow(0 1px 1px rgba(50,45,25,.16))}
+.text-object{min-width:70px;padding:6px 8px;white-space:pre-wrap;line-height:1.4;outline:0}
 
-  .panel{
-    background:rgba(255,255,255,.72);
-    border:1px solid var(--line);
-    box-shadow:var(--shadow);
-    border-radius:14px;
-    backdrop-filter:blur(8px);
-    overflow:hidden;
-  }
+.polaroid{background:#fff;padding:13px 13px 44px;box-shadow:0 8px 20px rgba(50,50,40,.22);width:248px}
+.photo-window{width:222px;height:222px;background:#e3ddcd;overflow:hidden;position:relative;cursor:zoom-in}
+.photo-window img{width:100%;height:100%;object-fit:cover;transform-origin:center;pointer-events:none}
+.polaroid .cap{
+  position:absolute;bottom:10px;left:13px;width:222px;border:0;background:transparent;text-align:center;
+  font-family:var(--font-hand);font-size:23px;color:var(--ink);outline:none;
+}
 
-  .panel-head{
-    padding:13px 16px;
-    border-bottom:1px solid var(--line);
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    font-size:12px;
-    font-weight:700;
-    letter-spacing:.12em;
-  }
+.keyring{width:78px;height:104px;transform-origin:50% -6px}
+.keyring .loop{position:absolute;left:50%;top:-16px;width:16px;height:22px;transform:translateX(-50%);
+  border:3.5px solid var(--metal-dark);border-radius:50%;background:transparent}
+.keyring img{width:100%;height:100%;object-fit:contain;pointer-events:none;margin-top:8px}
+.keyring.sway{animation:sway 2.6s ease-in-out infinite alternate}
+.keyring.jingle{animation:jingle .6s cubic-bezier(.36,.07,.19,.97) 1}
+@keyframes sway{from{rotate:-3.5deg}to{rotate:3.5deg}}
+@keyframes jingle{0%{rotate:0deg}20%{rotate:-11deg}40%{rotate:9deg}60%{rotate:-6deg}80%{rotate:4deg}100%{rotate:0deg}}
 
-  .tabs{
-    display:flex;
-    gap:6px;
-    padding:12px;
-    flex-wrap:wrap;
-  }
+/* toast */
+.toast{
+  position:absolute;left:50%;top:20px;transform:translate(-50%,-16px);z-index:100;opacity:0;pointer-events:none;
+  background:var(--accent);color:#fff;padding:9px 20px;border-radius:999px;font-size:13.5px;box-shadow:var(--shadow-sm);
+}
+.toast.show{animation:toastpop 1.6s ease}
+@keyframes toastpop{0%{opacity:0;transform:translate(-50%,-14px)}15%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,8px)}}
 
-  .tab{
-    font-size:10px;
-    border:1px solid var(--line);
-    color:#73839a;
-    padding:7px 8px;
-    border-radius:8px;
-    background:#fff;
-  }
+/* corner charms — theme-colored, fade+rise in once then stay put */
+.charm{position:absolute;z-index:40;opacity:0;pointer-events:none;color:var(--theme-deep);
+  transform:translateY(48px);transition:opacity 1.5s cubic-bezier(.16,.6,.15,1), transform 1.5s cubic-bezier(.16,.6,.15,1)}
+.charm.revealed{opacity:1;transform:translateY(0)}
+.charm.no-anim{transition:none !important}
+.charm.pulse{animation:charmpulse .5s ease}
+@keyframes charmpulse{0%,100%{scale:1}40%{scale:1.12}}
+.charm-bit svg{width:100%;height:100%;display:block}
 
-  .tab.active{
-    color:var(--theme-deep);
-    background:var(--theme-soft);
-    border-color:color-mix(in srgb,var(--theme) 55%,white);
-  }
+.charm-photo{right:2%;bottom:1%;width:266px;background:#fff;padding:13px 13px 44px;box-shadow:var(--shadow);
+  transform:rotate(-11deg) translateY(48px);transition:opacity 1.5s cubic-bezier(.16,.6,.15,1), transform 1.5s cubic-bezier(.16,.6,.15,1)}
+.charm-photo.revealed{transform:rotate(-11deg) translateY(0)}
+.charm-photo .shot{height:236px;background:linear-gradient(135deg,var(--theme-soft),color-mix(in srgb,var(--theme) 45%, white));display:grid;place-items:center;color:var(--theme-deep);pointer-events:auto;cursor:pointer;overflow:hidden}
+.charm-photo .shot svg{width:40px;height:40px}
+.charm-photo .shot img{width:100%;height:100%;object-fit:cover}
+.charm-photo .cap{text-align:center;font-family:var(--font-hand);color:var(--theme-deep);font-size:18px;margin-top:7px}
+.charm-photo .cap[contenteditable]{pointer-events:auto;cursor:text;outline:0}
 
-  .sticker-grid{
-    padding:0 12px 14px;
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:9px;
-  }
-
-  .sticker{
-    aspect-ratio:1;
-    display:grid;
-    place-items:center;
-    border-radius:9px;
-    background:
-      linear-gradient(145deg,#fff, color-mix(in srgb,var(--theme-soft) 55%,white));
-    border:1px solid var(--line);
-    font-size:23px;
-    cursor:grab;
-    user-select:none;
-  }
-
-  .accordion{
-    border-top:1px solid var(--line);
-    padding:13px 15px;
-    display:flex;
-    justify-content:space-between;
-    font-size:11px;
-    letter-spacing:.08em;
-  }
-
-  .book-stage{
-    min-height:760px;
-    position:relative;
-    border-radius:20px;
-    padding:32px 28px;
-    background:
-      linear-gradient(145deg,
-        color-mix(in srgb,var(--theme-soft) 72%,white),
-        color-mix(in srgb,var(--theme-pale) 84%,white));
-    border:1px solid color-mix(in srgb,var(--theme) 30%,white);
-    box-shadow:var(--shadow);
-    overflow:hidden;
-  }
-
-  .book-stage:before,
-  .book-stage:after{
-    content:"";
-    position:absolute;
-    border:1px dashed color-mix(in srgb,var(--theme) 38%,transparent);
-    border-radius:28px;
-    width:180px;height:180px;
-    opacity:.35;
-  }
-  .book-stage:before{left:-50px;top:-60px;transform:rotate(18deg)}
-  .book-stage:after{right:-45px;bottom:-70px;transform:rotate(-18deg)}
-
-  .book{
-    width:100%;
-    max-width:900px;
-    margin:0 auto;
-    min-height:650px;
-    display:grid;
-    grid-template-columns:1fr 30px 1fr;
-    position:relative;
-    filter:drop-shadow(0 18px 18px rgba(70,85,120,.14));
-  }
-
-  .page{
-    position:relative;
-    background:
-      repeating-linear-gradient(0deg,transparent 0 26px, rgba(90,120,155,.055) 27px),
-      var(--paper);
-    border:1px solid rgba(120,130,150,.18);
-    overflow:hidden;
-  }
-
-  .page.left{border-radius:18px 4px 4px 18px}
-  .page.right{border-radius:4px 18px 18px 4px}
-
-  .page:after{
-    content:"DROP / PLACE OBJECTS HERE";
-    position:absolute;
-    left:50%;top:50%;
-    transform:translate(-50%,-50%);
-    color:rgba(83,110,145,.20);
-    font-size:11px;
-    letter-spacing:.25em;
-    white-space:nowrap;
-  }
-
-  .rings{
-    position:relative;
-    z-index:5;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-around;
-    align-items:center;
-    padding:38px 0;
-  }
-
-  .ring{
-    width:44px;height:18px;
-    border:5px solid #bac4d0;
-    border-left-color:#ecf0f4;
-    border-radius:50%;
-    background:transparent;
-    box-shadow:0 2px 3px rgba(0,0,0,.10);
-  }
-
-  .sample-note{
-    position:absolute;
-    left:38px;top:35px;
-    padding:12px 14px;
-    border:1px solid var(--line);
-    background:color-mix(in srgb,var(--theme-soft) 35%,white);
-    transform:rotate(-3deg);
-    font-family:"Courier New",monospace;
-    font-size:12px;
-    letter-spacing:.08em;
-    z-index:2;
-  }
-
-  .placeholder-photo{
-    position:absolute;
-    width:43%;
-    aspect-ratio:4/5;
-    right:35px;
-    top:78px;
-    background:
-      linear-gradient(135deg,
-        color-mix(in srgb,var(--theme-soft) 50%,white),
-        color-mix(in srgb,var(--theme) 26%,#e8eef7));
-    border:10px solid white;
-    box-shadow:0 8px 15px rgba(65,75,100,.15);
-    transform:rotate(3deg);
-    display:grid;
-    place-items:center;
-    color:rgba(72,95,125,.45);
-    font-size:11px;
-    letter-spacing:.2em;
-    z-index:2;
-  }
-
-  .fixed-polaroid{
-    margin-top:110px;
-    background:white;
-    border:1px solid rgba(100,120,150,.18);
-    box-shadow:var(--shadow);
-    padding:11px 11px 18px;
-    transform:rotate(2deg);
-    opacity:0;
-    animation:riseIn 1s cubic-bezier(.18,.83,.3,1) .35s forwards;
-  }
-
-  .fixed-polaroid-media{
-    aspect-ratio:4/5;
-    display:grid;
-    place-items:center;
-    background:
-      linear-gradient(145deg,#e8eff9,var(--theme-soft));
-    color:rgba(60,90,130,.42);
-    font-size:11px;
-    letter-spacing:.15em;
-    overflow:hidden;
-  }
-
-  .fixed-polaroid-media img{
-    width:100%;height:100%;object-fit:cover;display:block;
-  }
-
-  .fixed-polaroid-caption{
-    padding:13px 4px 0;
-    font-family:Georgia,serif;
-    font-style:italic;
-    color:var(--theme-deep);
-    text-align:center;
-  }
-
-  @keyframes riseIn{
-    from{opacity:0;transform:translateY(80px) rotate(2deg)}
-    to{opacity:1;transform:translateY(0) rotate(2deg)}
-  }
-
-  .hint{
-    margin-top:18px;
-    padding:14px 15px;
-    border:1px dashed var(--line);
-    border-radius:12px;
-    font-size:11px;
-    line-height:1.7;
-    background:rgba(255,255,255,.45);
-    color:#71829a;
-  }
-
-  @media (max-width:1180px){
-    .workspace{grid-template-columns:200px 1fr}
-    .right-rail{display:none}
-  }
-
-  @media (max-width:800px){
-    .topbar{grid-template-columns:1fr;justify-items:center}
-    .workspace{grid-template-columns:1fr}
-    .left-panel{display:none}
-    .book-stage{min-height:580px;padding:18px 10px}
-    .book{min-height:520px;grid-template-columns:1fr 20px 1fr}
-    .brand{font-size:34px}
-  }
+@media (max-width:880px){
+  .workspace{grid-template-columns:1fr}
+  .stage{height:64vh}
+  .topbar{max-width:none}
+  .charm-photo{width:160px}
+}
 </style>
 </head>
-
 <body>
-  <main class="app">
+<div class="app">
 
-    <header class="topbar">
-      <div class="brand">DIARY</div>
+  <header class="header">
+    <div class="brand">
+      <span class="word">Diary</span>
+      <span class="sub">나만의 다이어리를 자유롭게 꾸며보세요</span>
+    </div>
 
-      <div class="toolbar">
-        <button type="button">STICKER</button>
-        <button type="button">PHOTO</button>
-        <button type="button">POLAROID</button>
-        <button type="button">KEYRING</button>
-        <button type="button">TEXT</button>
+    <nav class="topbar" aria-label="도구 모음">
+      <button class="tbtn" id="undo" title="실행 취소 (Ctrl+Z)" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg>
+      </button>
+      <button class="tbtn" id="redo" title="다시 실행 (Ctrl+Shift+Z)" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h1"/></svg>
+      </button>
+      <div class="tb-div"></div>
+      <div class="tb-spacer"></div>
+      <button class="tbtn primary" id="save">SAVE</button>
+      <button class="tbtn" id="load">LOAD</button>
+      <div class="export-wrap">
+        <button class="tbtn" id="exportBtn">EXPORT</button>
+        <div class="export-menu" id="exportMenu">
+          <button id="exportPNG">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="m21 15-5-5-9 9"/></svg>
+            이미지로 저장 (PNG)
+          </button>
+          <button id="exportGIF">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 8v8l7-4-7-4Z" fill="currentColor" stroke="none"/></svg>
+            움직이는 미리보기
+          </button>
+          <button id="exportJSON">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            프로젝트 파일 저장
+          </button>
+          <div class="hint">GIF 파일 저장은 준비 중이에요</div>
+        </div>
       </div>
+    </nav>
+  </header>
 
-      <div class="theme-panel">
-        <span class="theme-label">THEME</span>
+  <main class="workspace">
+    <aside class="sidebar">
 
-        <button class="swatch" type="button" data-color="#79aef5"
-          style="background:#79aef5" aria-label="blue"></button>
-        <button class="swatch" type="button" data-color="#f39abb"
-          style="background:#f39abb" aria-label="pink"></button>
-        <button class="swatch" type="button" data-color="#a990e8"
-          style="background:#a990e8" aria-label="purple"></button>
-        <button class="swatch" type="button" data-color="#8fc9ad"
-          style="background:#8fc9ad" aria-label="green"></button>
-        <button class="swatch" type="button" data-color="#e2b878"
-          style="background:#e2b878" aria-label="beige"></button>
-
-        <input id="customColor" class="color-input" type="color" value="#79aef5" title="Custom theme color">
-      </div>
-    </header>
-
-    <section class="workspace">
-
-      <!-- 왼쪽 편집 도구 -->
-      <aside class="panel left-panel">
-        <div class="panel-head">
-          <span>STICKER</span>
-          <span>×</span>
-        </div>
-
-        <div class="tabs">
-          <div class="tab active">ALL</div>
-          <div class="tab">DECOR</div>
-          <div class="tab">ICON</div>
-          <div class="tab">MEMO</div>
-        </div>
-
-        <!-- 샘플 자리. 추후 사용자가 등록한 스티커 썸네일로 교체 -->
-        <div class="sticker-grid">
-          <div class="sticker">♡</div>
-          <div class="sticker">☆</div>
-          <div class="sticker">✿</div>
-          <div class="sticker">୨୧</div>
-          <div class="sticker">☁</div>
-          <div class="sticker">✦</div>
-          <div class="sticker">♬</div>
-          <div class="sticker">⌁</div>
-          <div class="sticker">❄</div>
-          <div class="sticker">✉</div>
-          <div class="sticker">☾</div>
-          <div class="sticker">⊹</div>
-        </div>
-
-        <div class="accordion"><span>POLAROID</span><span>＋</span></div>
-        <div class="accordion"><span>KEYRING</span><span>＋</span></div>
-        <div class="accordion"><span>BACKGROUND</span><span>＋</span></div>
-      </aside>
-
-      <!-- 중앙 다이어리 -->
-      <section class="book-stage" id="bookStage">
-        <div class="book">
-
-          <div class="page left" id="leftPage">
-            <div class="sample-note">your diary<br>your story.</div>
-            <div class="placeholder-photo">PHOTO</div>
+      <section class="section open" data-section>
+        <button class="section-head">
+          <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3c2 3-1 4 1 6s5-1 6 1-2 4-1 6-3 3-5 1-4 1-6-1 1-4-1-6 3-3 5-1 4-1 1-6Z"/></svg>스티커</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="section-body"><div class="section-inner">
+          <div class="asset-grid" id="stickerGrid">
+            <button class="asset" data-sticker="ribbon" title="리본"></button>
+            <button class="asset" data-sticker="sparkle" title="반짝이"></button>
+            <button class="asset" data-sticker="heart" title="하트"></button>
+            <button class="asset" data-sticker="tape" title="마스킹테이프"></button>
+            <button class="asset" data-sticker="clip" title="클립"></button>
+            <button class="asset add" id="addStickerBtn" title="내 이미지 추가">＋</button>
           </div>
-
-          <div class="rings" aria-hidden="true">
-            <div class="ring"></div>
-            <div class="ring"></div>
-            <div class="ring"></div>
-            <div class="ring"></div>
-            <div class="ring"></div>
-            <div class="ring"></div>
-          </div>
-
-          <div class="page right" id="rightPage"></div>
-
-        </div>
+          <input id="stickerFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+          <p class="note">스티커를 클릭하면 오른쪽 다이어리에 추가돼요. 드래그로 이동, 휠로 확대·축소, 위의 동그란 손잡이로 회전할 수 있어요.</p>
+        </div></div>
       </section>
 
-      <!-- 오른쪽 고정 연출 -->
-      <aside class="right-rail">
-        <div class="fixed-polaroid">
-          <div class="fixed-polaroid-media" id="gifFrame">
-            FIXED GIF
-            <!--
-            실제 GIF 사용 시 위 글자를 지우고 아래처럼 넣으면 됨.
-            <img src="your-animation.gif" alt="">
-            -->
+      <section class="section" data-section>
+        <button class="section-head">
+          <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="1"/><rect x="6.5" y="5.5" width="11" height="10" rx="0.5"/></svg>폴라로이드</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="section-body"><div class="section-inner">
+          <button class="asset add" id="addPolaroidBtn" style="width:100%;aspect-ratio:2.6">＋ 사진 추가</button>
+          <input id="photoFile" type="file" accept="image/*" hidden>
+          <p class="note">폴라로이드는 드래그로 이동해요. 사진 위에서 휠로 확대·축소하고 드래그하면 사진 속 위치를 조정할 수 있어요. 아래 글자는 클릭해서 바로 수정하세요.</p>
+        </div></div>
+      </section>
+
+      <section class="section" data-section>
+        <button class="section-head">
+          <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>메모 · 글자</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="section-body"><div class="section-inner">
+          <textarea id="textValue" placeholder="다이어리에 남길 말을 적어보세요"></textarea>
+          <div class="field">
+            <label>글꼴</label>
+            <select id="font"></select>
           </div>
-          <div class="fixed-polaroid-caption">memory ♡</div>
+          <div class="row2 field">
+            <div>
+              <label>글자 크기</label>
+              <input type="range" id="fontSize" min="12" max="48" value="19" style="width:100%">
+            </div>
+            <input type="color" id="textColor" value="#585f74" title="글자 색">
+          </div>
+          <div class="field"><button class="btn solid" id="addText">글자 추가</button></div>
+          <p class="note">선택된 글자가 있으면 위 설정을 바꿀 때 바로 적용돼요. 화면에서 더블클릭하면 바로 타이핑할 수 있어요.</p>
+        </div></div>
+      </section>
+
+      <section class="section" data-section>
+        <button class="section-head">
+          <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="6" r="3"/><path d="M12 9v9l-3 3M12 18l3 3"/></svg>키링</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="section-body"><div class="section-inner">
+          <button class="asset add" id="addKeyringBtn" style="width:100%;aspect-ratio:2.6">＋ 키링 이미지 추가</button>
+          <input id="keyringFile" type="file" accept="image/png,image/webp,image/gif,image/jpeg" hidden>
+          <p class="note">다이어리 가운데 고리 부분에 매달리듯 놓아보세요. 이동할 때마다 짤랑짤랑 흔들리고, 평소엔 살짝살짝 움직여요.</p>
+        </div></div>
+      </section>
+
+      <section class="section" data-section>
+        <button class="section-head">
+          <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>테마 색</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="section-body"><div class="section-inner">
+          <div class="theme-row">
+            <button class="swatch" data-theme="#aec6ea" style="background:#aec6ea"></button>
+            <button class="swatch" data-theme="#f1bcd0" style="background:#f1bcd0"></button>
+            <button class="swatch" data-theme="#cdbcf0" style="background:#cdbcf0"></button>
+            <button class="swatch" data-theme="#b7ddc7" style="background:#b7ddc7"></button>
+            <button class="swatch" data-theme="#f3d29b" style="background:#f3d29b"></button>
+            <label class="swatch custom" style="background:conic-gradient(red,#ff0,lime,cyan,blue,magenta,red)">
+              <input type="color" id="themePicker" value="#aec6ea" title="직접 선택">
+            </label>
+          </div>
+        </div></div>
+      </section>
+
+    </aside>
+
+    <div class="stage-wrap">
+      <section class="stage" id="stage">
+        <div class="diary">
+          <div class="mat"></div>
+          <div class="page left"></div>
+          <div class="page right"></div>
+          <div class="page-logo">
+            <span class="word" contenteditable="true" spellcheck="false" data-text="Diary">Diary</span>
+          </div>
+          <div class="ring-stack r1">
+            <svg viewBox="0 0 52 34" xmlns="http://www.w3.org/2000/svg">
+              <defs><linearGradient id="ringGrad1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color:#ffffff"/><stop offset=".55" style="stop-color:var(--metal)"/><stop offset="1" style="stop-color:var(--metal-dark)"/>
+              </linearGradient></defs>
+              <path d="M4 16C4 6 48 6 48 16" fill="none" stroke="url(#ringGrad1)" stroke-width="7" stroke-linecap="round"/>
+              <path d="M4 27C4 17 48 17 48 27" fill="none" stroke="url(#ringGrad1)" stroke-width="7" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="ring-stack r2">
+            <svg viewBox="0 0 52 34" xmlns="http://www.w3.org/2000/svg">
+              <defs><linearGradient id="ringGrad2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color:#ffffff"/><stop offset=".55" style="stop-color:var(--metal)"/><stop offset="1" style="stop-color:var(--metal-dark)"/>
+              </linearGradient></defs>
+              <path d="M4 16C4 6 48 6 48 16" fill="none" stroke="url(#ringGrad2)" stroke-width="7" stroke-linecap="round"/>
+              <path d="M4 27C4 17 48 17 48 27" fill="none" stroke="url(#ringGrad2)" stroke-width="7" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="canvas" id="canvas"></div>
         </div>
 
-        <div class="hint">
-          이 영역은 사용자 편집 대상에서 제외된 고정 연출 영역.<br>
-          GIF 폴라로이드는 페이지 진입 시 아래에서 위로 페이드인.
-        </div>
-      </aside>
+        <div class="toast" id="toast"></div>
 
-    </section>
+        <div class="charm charm-photo" id="charmPhoto">
+          <div class="shot" id="charmPhotoShot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m21 16-5-4-4 3-3-2-6 5"/></svg></div>
+          <div class="cap" id="charmPhotoCap" contenteditable="true" spellcheck="false">diary</div>
+        </div>
+      </section>
+    </div>
   </main>
+</div>
+
+<input id="loadFile" type="file" accept=".json,application/json" hidden>
+<input id="charmPhotoFile" type="file" accept="image/*" hidden>
+<div id="pngStage" style="position:fixed;left:-9999px;top:0"></div>
 
 <script>
-  const root = document.documentElement;
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const canvas=$("#canvas"), stage=$("#stage"), toast=$("#toast");
+let selected=null, history=[], future=[], restoring=false, stickerSeq=0;
 
-  function hexToRgb(hex){
-    hex = hex.replace("#","");
-    if(hex.length === 3) hex = hex.split("").map(v => v + v).join("");
-    const n = parseInt(hex,16);
-    return {
-      r:(n >> 16) & 255,
-      g:(n >> 8) & 255,
-      b:n & 255
-    };
-  }
+/* ---------- sticker svg library ---------- */
+const STICKERS={
+  ribbon:`<svg viewBox="0 0 64 64" fill="none">
+    <path d="M32 30 10 12c-4 8 2 16 10 18Z M32 30 54 12c4 8-2 16-10 18Z" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M32 30v24M25 54h14" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+    <path d="M32 30 10 12c-4 8 2 16 10 18Z" fill="var(--theme-soft)" stroke="var(--theme-deep)" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M32 30 54 12c4 8-2 16-10 18Z" fill="var(--theme-soft)" stroke="var(--theme-deep)" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M32 30v24M25 54h14" stroke="var(--theme-deep)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="32" cy="29" r="7" fill="#fff"/><circle cx="32" cy="29" r="5" fill="var(--theme-deep)"/>
+  </svg>`,
+  sparkle:`<svg viewBox="0 0 64 64" fill="none">
+    <path d="M30 8c1 10 4 13 14 14-10 1-13 4-14 14-1-10-4-13-14-14 10-1 13-4 14-14Z M49 36c.6 5 2 6.4 7 7-5 .6-6.4 2-7 7-.6-5-2-6.4-7-7 5-.6 6.4-2 7-7Z" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M30 8c1 10 4 13 14 14-10 1-13 4-14 14-1-10-4-13-14-14 10-1 13-4 14-14Z M49 36c.6 5 2 6.4 7 7-5 .6-6.4 2-7 7-.6-5-2-6.4-7-7 5-.6 6.4-2 7-7Z" stroke="var(--theme-deep)" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M30 8c1 10 4 13 14 14-10 1-13 4-14 14-1-10-4-13-14-14 10-1 13-4 14-14Z" fill="var(--theme-deep)"/>
+    <path d="M49 36c.6 5 2 6.4 7 7-5 .6-6.4 2-7 7-.6-5-2-6.4-7-7 5-.6 6.4-2 7-7Z" fill="var(--theme-deep)"/>
+  </svg>`,
+  heart:`<svg viewBox="0 0 64 64" fill="none">
+    <path d="M32 52C14 40 8 30 8 21a13 13 0 0 1 24-6 13 13 0 0 1 24 6c0 9-6 19-24 31Z" stroke="#fff" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M32 52C14 40 8 30 8 21a13 13 0 0 1 24-6 13 13 0 0 1 24 6c0 9-6 19-24 31Z" stroke="var(--theme-deep)" stroke-width="3.4" stroke-linejoin="round"/>
+    <path d="M32 52C14 40 8 30 8 21a13 13 0 0 1 24-6 13 13 0 0 1 24 6c0 9-6 19-24 31Z" fill="var(--theme-soft)"/>
+  </svg>`,
+  tape:`<svg viewBox="0 0 64 64">
+    <rect x="1" y="15" width="62" height="30" rx="6" fill="#fff" transform="rotate(-4 32 32)"/>
+    <rect x="4.5" y="18.5" width="55" height="23" rx="4" fill="var(--theme)" opacity=".92" stroke="var(--theme-deep)" stroke-width="2.6" transform="rotate(-4 32 32)"/>
+    <g opacity=".45" transform="rotate(-4 32 32)" stroke="#fff" stroke-width="2">
+      <line x1="12" y1="19" x2="12" y2="41"/><line x1="20" y1="19" x2="20" y2="41"/><line x1="28" y1="19" x2="28" y2="41"/>
+      <line x1="36" y1="19" x2="36" y2="41"/><line x1="44" y1="19" x2="44" y2="41"/><line x1="52" y1="19" x2="52" y2="41"/>
+    </g>
+  </svg>`,
+  clip:`<svg viewBox="0 0 64 64" fill="none">
+    <path d="M20 28V16a10 10 0 0 1 20 0v28a6 6 0 0 1-12 0V20a2 2 0 0 1 4 0v22" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M20 28V16a10 10 0 0 1 20 0v28a6 6 0 0 1-12 0V20a2 2 0 0 1 4 0v22" stroke="var(--theme-deep)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`
+};
+$$("#stickerGrid .asset[data-sticker]").forEach(b=>b.innerHTML=STICKERS[b.dataset.sticker]);
 
-  function mixWithWhite(hex, amount){
-    const {r,g,b}=hexToRgb(hex);
-    const mix=v => Math.round(v + (255-v)*amount);
-    return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
-  }
+/* ---------- fonts ---------- */
+const FONTS=[
+  ["Gaegu, sans-serif","개구"],["Nanum Pen Script, cursive","나눔손글씨"],["Gowun Dodum, sans-serif","고운 도담"],
+  ["Caveat, cursive","Caveat"],["Dongle, sans-serif","동글"],["Gamja Flower, sans-serif","감자꽃"],
+  ["East Sea Dokdo, sans-serif","동해 독도"],["Poor Story, sans-serif","포춘스토리"],["Do Hyeon, sans-serif","도현"],
+  ["Song Myung, serif","송명"],["Noto Sans KR, sans-serif","노토산스"],["Georgia, serif","Georgia"]
+];
+$("#font").innerHTML=FONTS.map(f=>`<option value="${f[0]}">${f[1]}</option>`).join("");
 
-  function darken(hex, amount){
-    const {r,g,b}=hexToRgb(hex);
-    const d=v => Math.max(0,Math.round(v*(1-amount)));
-    return `rgb(${d(r)},${d(g)},${d(b)})`;
-  }
+/* ---------- accordion ---------- */
+$$("[data-section] .section-head").forEach(b=>b.onclick=()=>b.parentElement.classList.toggle("open"));
 
-  function setTheme(color){
-    root.style.setProperty("--theme", color);
-    root.style.setProperty("--theme-deep", darken(color,.22));
-    root.style.setProperty("--theme-soft", mixWithWhite(color,.68));
-    root.style.setProperty("--theme-pale", mixWithWhite(color,.90));
-    document.getElementById("customColor").value = color;
-  }
+/* ---------- toast / charms ---------- */
+function flash(text){toast.textContent=text;toast.classList.remove("show");void toast.offsetWidth;toast.classList.add("show")}
+function popCharms(){
+  const els=$$(".charm");
+  els.forEach(el=>{el.classList.add("no-anim");el.classList.remove("revealed")});
+  void stage.offsetWidth;
+  els.forEach(el=>el.classList.remove("no-anim"));
+  void stage.offsetWidth;
+  els.forEach((el,i)=>setTimeout(()=>el.classList.add("revealed"), 30+i*55));
+}
 
-  document.querySelectorAll(".swatch").forEach(btn=>{
-    btn.addEventListener("click",()=>setTheme(btn.dataset.color));
+/* ---------- history ---------- */
+function snapshot(){return {html:canvas.innerHTML, theme:getComputedStyle(document.documentElement).getPropertyValue("--theme").trim()}}
+function pushHistory(){if(restoring)return; history.push(snapshot()); if(history.length>60)history.shift(); future=[]; syncHistBtns()}
+function restore(s){if(!s)return; restoring=true; canvas.innerHTML=s.html; setTheme(s.theme,false); wireAll(); selected=null; restoring=false}
+function syncHistBtns(){$("#undo").disabled=!history.length; $("#redo").disabled=!future.length}
+function undo(){if(!history.length)return; future.push(snapshot()); restore(history.pop()); syncHistBtns()}
+function redo(){if(!future.length)return; history.push(snapshot()); restore(future.pop()); syncHistBtns()}
+$("#undo").onclick=undo; $("#redo").onclick=redo;
+document.addEventListener("keydown",e=>{
+  const typing=document.activeElement && (document.activeElement.tagName==="TEXTAREA"||document.activeElement.tagName==="INPUT"||document.activeElement.isContentEditable);
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault(); e.shiftKey?redo():undo(); return}
+  if(!typing && (e.key==="Delete"||e.key==="Backspace") && selected){e.preventDefault(); removeObj(selected)}
+});
+
+/* ---------- object factory ---------- */
+function makeObj(cls,x,y,w,h){
+  pushHistory();
+  const el=document.createElement("div");
+  el.className="obj "+cls;
+  el.style.left=x+"px"; el.style.top=y+"px"; el.style.width=w+"px"; el.style.height=h+"px";
+  el.dataset.scale="1"; el.dataset.rotate="0";
+  el.innerHTML='<div class="rotate-handle"></div><button class="delete" aria-label="삭제">×</button>';
+  canvas.appendChild(el); wire(el); select(el);
+  return el;
+}
+function removeObj(el){pushHistory(); el.remove(); selected=null}
+function select(el){$$(".obj.selected").forEach(x=>x.classList.remove("selected")); selected=el; if(el)el.classList.add("selected"); if(el&&el.classList.contains("text-object"))syncTextControls(el)}
+canvas.addEventListener("pointerdown",e=>{if(e.target===canvas)select(null)});
+
+function wire(el){
+  if(el.dataset.wired)return; el.dataset.wired="1";
+  el.querySelector(".delete").addEventListener("click",e=>{e.stopPropagation(); removeObj(el)});
+
+  el.addEventListener("pointerdown",e=>{
+    if(e.target.matches("input,.delete,.cap") || e.target.closest(".rotate-handle") || e.target.closest(".photo-window") || el.isContentEditable && e.detail>1) return;
+    select(el); el.setPointerCapture(e.pointerId);
+    const sx=e.clientX, sy=e.clientY, l=parseFloat(el.style.left)||0, t=parseFloat(el.style.top)||0;
+    let moved=false;
+    const move=ev=>{moved=true; el.style.left=(l+ev.clientX-sx)+"px"; el.style.top=(t+ev.clientY-sy)+"px"};
+    const up=()=>{el.removeEventListener("pointermove",move); el.removeEventListener("pointerup",up); if(moved){pushHistory(); if(el.classList.contains("keyring-object")) jingle(el)}};
+    el.addEventListener("pointermove",move); el.addEventListener("pointerup",up);
   });
 
-  document.getElementById("customColor").addEventListener("input",e=>{
-    setTheme(e.target.value);
+  el.addEventListener("wheel",e=>{
+    if(e.target.closest(".photo-window"))return;
+    e.preventDefault();
+    const s=Math.max(.25,Math.min(4,(+el.dataset.scale||1)+(e.deltaY<0?.08:-.08)));
+    el.dataset.scale=s; el.style.scale=s;
+  },{passive:false});
+
+  const handle=el.querySelector(".rotate-handle");
+  if(handle){
+    handle.addEventListener("pointerdown",e=>{
+      e.stopPropagation(); handle.setPointerCapture(e.pointerId);
+      const rect=el.getBoundingClientRect(), cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+      const startAngle=Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI;
+      const base=+el.dataset.rotate||0;
+      const move=ev=>{
+        const ang=Math.atan2(ev.clientY-cy,ev.clientX-cx)*180/Math.PI;
+        const r=base+(ang-startAngle);
+        el.dataset.rotate=r; el.style.rotate=r+"deg";
+      };
+      const up=()=>{handle.removeEventListener("pointermove",move); handle.removeEventListener("pointerup",up); pushHistory()};
+      handle.addEventListener("pointermove",move); handle.addEventListener("pointerup",up);
+    });
+  }
+}
+function wireAll(){$$(".obj").forEach(wire)}
+function jingle(el){el.classList.remove("jingle"); void el.offsetWidth; el.classList.add("jingle")}
+
+/* ---------- stickers ---------- */
+function addSticker(key,file){
+  const el=makeObj("obj sticker-object",stage.clientWidth*.42+stickerSeq*6,stage.clientHeight*.32+stickerSeq*6,86,86);
+  stickerSeq=(stickerSeq+1)%6;
+  if(file){el.insertAdjacentHTML("beforeend",`<img src="${URL.createObjectURL(file)}">`)}
+  else{el.insertAdjacentHTML("beforeend",STICKERS[key])}
+}
+$$("#stickerGrid .asset[data-sticker]").forEach(b=>b.onclick=()=>addSticker(b.dataset.sticker));
+$("#addStickerBtn").onclick=()=>$("#stickerFile").click();
+$("#stickerFile").onchange=e=>{if(e.target.files[0])addSticker(null,e.target.files[0]); e.target.value=""};
+
+/* ---------- polaroid ---------- */
+$("#addPolaroidBtn").onclick=()=>$("#photoFile").click();
+$("#photoFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const url=URL.createObjectURL(f);
+  const el=makeObj("obj polaroid",stage.clientWidth*.48,stage.clientHeight*.18,248,299);
+  el.dataset.scale="1"; el.dataset.rotate="-6"; el.style.rotate="-6deg";
+  el.insertAdjacentHTML("beforeend",`<div class="photo-window"><img src="${url}" data-zoom="1" data-x="0" data-y="0"></div><div class="cap" contenteditable="true">우리의 순간</div>`);
+  const win=el.querySelector(".photo-window"), img=win.querySelector("img");
+  win.addEventListener("wheel",ev=>{
+    ev.preventDefault(); ev.stopPropagation();
+    const z=Math.max(1,Math.min(5,(+img.dataset.zoom||1)+(ev.deltaY<0?.12:-.12)));
+    img.dataset.zoom=z; photoTransform(img);
+  },{passive:false});
+  win.addEventListener("pointerdown",ev=>{
+    ev.stopPropagation(); win.setPointerCapture(ev.pointerId);
+    const sx=ev.clientX, sy=ev.clientY, ox=+img.dataset.x||0, oy=+img.dataset.y||0;
+    const mv=m=>{img.dataset.x=ox+m.clientX-sx; img.dataset.y=oy+m.clientY-sy; photoTransform(img)};
+    const up=()=>{win.removeEventListener("pointermove",mv); win.removeEventListener("pointerup",up); pushHistory()};
+    win.addEventListener("pointermove",mv); win.addEventListener("pointerup",up);
   });
+  e.target.value="";
+};
+function photoTransform(img){img.style.transform=`translate(${img.dataset.x||0}px,${img.dataset.y||0}px) scale(${img.dataset.zoom||1})`}
+
+/* ---------- text ---------- */
+function syncTextControls(el){
+  $("#font").value=el.style.fontFamily.split(",")[0].trim()===""?FONTS[0][0]:el.dataset.fontVal||FONTS[0][0];
+  $("#textColor").value=rgbToHex(el.style.color)||"#585f74";
+  $("#fontSize").value=parseInt(el.style.fontSize)||19;
+}
+function rgbToHex(rgb){
+  if(!rgb)return null; if(rgb[0]==="#")return rgb;
+  const m=rgb.match(/\d+/g); if(!m)return null;
+  return "#"+m.slice(0,3).map(n=>(+n).toString(16).padStart(2,"0")).join("");
+}
+$("#addText").onclick=()=>{
+  const v=$("#textValue").value.trim()||"다이어리 메모";
+  const el=makeObj("obj text-object",stage.clientWidth*.4,stage.clientHeight*.45,180,40);
+  el.contentEditable="true"; el.dataset.fontVal=$("#font").value;
+  el.style.fontFamily=$("#font").value; el.style.color=$("#textColor").value; el.style.fontSize=$("#fontSize").value+"px";
+  el.insertAdjacentText("beforeend",v);
+};
+$("#font").onchange=e=>{if(selected&&selected.classList.contains("text-object")){pushHistory();selected.dataset.fontVal=e.target.value;selected.style.fontFamily=e.target.value}};
+$("#textColor").oninput=e=>{if(selected&&selected.classList.contains("text-object")){selected.style.color=e.target.value}};
+$("#textColor").onchange=()=>pushHistory();
+$("#fontSize").oninput=e=>{if(selected&&selected.classList.contains("text-object")){selected.style.fontSize=e.target.value+"px"}};
+$("#fontSize").onchange=()=>pushHistory();
+
+/* ---------- keyring ---------- */
+$("#addKeyringBtn").onclick=()=>$("#keyringFile").click();
+$("#keyringFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const el=makeObj("obj keyring-object keyring sway",stage.clientWidth/2-39,stage.clientHeight*.28,78,104);
+  el.insertAdjacentHTML("beforeend",`<div class="loop"></div><img src="${URL.createObjectURL(f)}">`);
+  e.target.value="";
+};
+
+/* ---------- theme ---------- */
+function setTheme(c,record){
+  if(record)pushHistory();
+  document.documentElement.style.setProperty("--theme",c);
+  $("#themePicker").value=/^#/.test(c)?c:"#aec6ea";
+}
+$$(".swatch[data-theme]").forEach(b=>b.onclick=()=>setTheme(b.dataset.theme,true));
+$("#themePicker").oninput=e=>setTheme(e.target.value,false);
+$("#themePicker").onchange=()=>pushHistory();
+
+/* ---------- save / load ---------- */
+function projectData(){return {v:1, theme:getComputedStyle(document.documentElement).getPropertyValue("--theme").trim(), html:canvas.innerHTML}}
+$("#save").onclick=()=>{
+  try{ localStorage.setItem("diary-project",JSON.stringify(projectData())); flash("저장했어요 ✓"); popCharms(); }
+  catch(err){ flash("저장에 실패했어요"); }
+};
+$("#load").onclick=()=>{
+  let raw=null; try{raw=localStorage.getItem("diary-project")}catch(err){}
+  if(raw){ pushHistory(); const d=JSON.parse(raw); canvas.innerHTML=d.html; setTheme(d.theme,false); wireAll(); flash("불러왔어요 ✓"); popCharms(); }
+  else $("#loadFile").click();
+};
+$("#loadFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{ pushHistory(); const d=JSON.parse(r.result); canvas.innerHTML=d.html; setTheme(d.theme,false); wireAll(); flash("불러왔어요 ✓"); popCharms(); }
+    catch(err){ flash("올바른 파일이 아니에요"); }
+  };
+  r.readAsText(f); e.target.value="";
+};
+
+/* ---------- export ---------- */
+$("#exportBtn").onclick=()=>$("#exportMenu").classList.toggle("show");
+document.addEventListener("click",e=>{ if(!e.target.closest(".export-wrap")) $("#exportMenu").classList.remove("show"); });
+
+$("#exportJSON").onclick=()=>{
+  const blob=new Blob([JSON.stringify(projectData())],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="diary-project.json"; a.click();
+  flash("프로젝트 파일을 저장했어요"); $("#exportMenu").classList.remove("show");
+};
+$("#exportGIF").onclick=()=>{ popCharms(); flash("등장 애니메이션을 재생했어요"); $("#exportMenu").classList.remove("show"); };
+$("#exportPNG").onclick=async ()=>{
+  $("#exportMenu").classList.remove("show");
+  $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
+  flash("이미지를 만드는 중...");
+  try{
+    const canvasImg=await html2canvas(document.querySelector(".diary"),{backgroundColor:null,scale:2,useCORS:true});
+    const a=document.createElement("a"); a.download="my-diary.png"; a.href=canvasImg.toDataURL("image/png"); a.click();
+    flash("이미지로 저장했어요 ✓");
+  }catch(err){ flash("이미지 저장에 실패했어요"); }
+};
+
+const pageLogoWord=$(".page-logo .word");
+if(pageLogoWord)pageLogoWord.addEventListener("input",()=>{pageLogoWord.dataset.text=pageLogoWord.textContent});
+
+$("#charmPhotoShot").addEventListener("click",()=>{ if(!$("#charmPhotoShot").querySelector("img")) $("#charmPhotoFile").click(); });
+$("#charmPhotoShot").addEventListener("dblclick",()=>$("#charmPhotoFile").click());
+$("#charmPhotoFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  $("#charmPhotoShot").innerHTML=`<img src="${URL.createObjectURL(f)}" data-zoom="1" data-x="0" data-y="0">`;
+  wireCharmPhoto();
+  e.target.value="";
+};
+function wireCharmPhoto(){
+  const shot=$("#charmPhotoShot");
+  if(!shot.dataset.wired){
+    shot.dataset.wired="1";
+    shot.addEventListener("wheel",ev=>{
+      const im=shot.querySelector("img"); if(!im)return;
+      ev.preventDefault();
+      const z=Math.max(1,Math.min(5,(+im.dataset.zoom||1)+(ev.deltaY<0?.12:-.12)));
+      im.dataset.zoom=z; photoTransform(im);
+    },{passive:false});
+    shot.addEventListener("pointerdown",ev=>{
+      const im=shot.querySelector("img"); if(!im)return;
+      shot.setPointerCapture(ev.pointerId);
+      const sx=ev.clientX, sy=ev.clientY, ox=+im.dataset.x||0, oy=+im.dataset.y||0;
+      const mv=m=>{im.dataset.x=ox+m.clientX-sx; im.dataset.y=oy+m.clientY-sy; photoTransform(im)};
+      const up=()=>{shot.removeEventListener("pointermove",mv); shot.removeEventListener("pointerup",up)};
+      shot.addEventListener("pointermove",mv); shot.addEventListener("pointerup",up);
+    });
+  }
+}
+wireCharmPhoto();
+
+pushHistory(); syncHistBtns();
+setTimeout(()=>popCharms(),450);
 </script>
 </body>
 </html>
