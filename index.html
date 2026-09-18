@@ -728,19 +728,40 @@ function wireCharmPhoto(){
   const shot=$("#charmPhotoShot");
   if(!shot.dataset.wired){
     shot.dataset.wired="1";
+
+    /* 폴라로이드 프레임은 고정.
+       사진 영역 안의 이미지 자체만 확대/축소 + 클릭 드래그로 위치 조정. */
     shot.addEventListener("wheel",ev=>{
       const im=shot.querySelector("img"); if(!im)return;
       ev.preventDefault();
+      ev.stopPropagation();
       const z=Math.max(1,Math.min(5,(+im.dataset.zoom||1)+(ev.deltaY<0?.12:-.12)));
-      im.dataset.zoom=z; photoTransform(im);
+      im.dataset.zoom=z;
+      photoTransform(im);
     },{passive:false});
+
     shot.addEventListener("pointerdown",ev=>{
       const im=shot.querySelector("img"); if(!im)return;
+      ev.preventDefault();
+      ev.stopPropagation();
+
       shot.setPointerCapture(ev.pointerId);
-      const sx=ev.clientX, sy=ev.clientY, ox=+im.dataset.x||0, oy=+im.dataset.y||0;
-      const mv=m=>{im.dataset.x=ox+m.clientX-sx; im.dataset.y=oy+m.clientY-sy; photoTransform(im)};
-      const up=()=>{shot.removeEventListener("pointermove",mv); shot.removeEventListener("pointerup",up)};
-      shot.addEventListener("pointermove",mv); shot.addEventListener("pointerup",up);
+      const sx=ev.clientX, sy=ev.clientY;
+      const ox=+im.dataset.x||0, oy=+im.dataset.y||0;
+
+      const mv=m=>{
+        im.dataset.x=ox+(m.clientX-sx);
+        im.dataset.y=oy+(m.clientY-sy);
+        photoTransform(im);
+      };
+      const up=()=>{
+        shot.removeEventListener("pointermove",mv);
+        shot.removeEventListener("pointerup",up);
+        shot.removeEventListener("pointercancel",up);
+      };
+      shot.addEventListener("pointermove",mv);
+      shot.addEventListener("pointerup",up);
+      shot.addEventListener("pointercancel",up);
     });
   }
 }
