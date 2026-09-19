@@ -18,8 +18,14 @@
   --ink-soft2:#9a9787;
   --line:#ddd3ba;
   --theme:#aec6ea;
-  --theme-deep: color-mix(in srgb, var(--theme) 72%, #4a5c86);
-  --theme-soft: color-mix(in srgb, var(--theme) 28%, white);
+  --theme-deep:#8299ce;
+  --theme-soft:#e9eff9;
+  --theme-a16:rgba(174,198,234,.16);
+  --accent-a10:rgba(52,105,195,.10);
+  --theme-92white:#b5cbea;
+  --accent-88black:#2e5cac;
+  --theme-a20:rgba(174,198,234,.20);
+  --theme-45white:#dbe7f5;
   --accent:#3469c3;
   --accent-soft:#e9f0fb;
   --metal:#b7bdc7;
@@ -60,8 +66,8 @@
 html,body{margin:0;min-height:100%}
 body{
   background:
-    radial-gradient(circle at 16% 8%, color-mix(in srgb, var(--theme) 16%, transparent), transparent 46%),
-    radial-gradient(circle at 86% 92%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 40%),
+    radial-gradient(circle at 16% 8%, var(--theme-a16), transparent 46%),
+    radial-gradient(circle at 86% 92%, var(--accent-a10), transparent 40%),
     var(--paper);
   font-family:var(--font-ui);
   color:var(--ink);
@@ -90,7 +96,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 
 .topbar{
   display:flex;align-items:center;gap:4px;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--theme) 92%, white), var(--theme));
+  background:linear-gradient(180deg, var(--theme-92white), var(--theme));
   border-radius:999px;padding:7px 9px;box-shadow:var(--shadow-sm);
   flex:1;min-width:300px;max-width:640px;margin-left:auto;position:relative;
 }
@@ -163,7 +169,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 }
 .btn:hover{border-color:var(--theme-deep);color:var(--theme-deep)}
 .btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
-.btn.solid:hover{background:color-mix(in srgb, var(--accent) 88%, black);color:#fff}
+.btn.solid:hover{background:var(--accent-88black);color:#fff}
 .note{font-size:11px;line-height:1.6;color:var(--ink-soft);margin:10px 1px 0}
 
 .theme-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -177,7 +183,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 .stage{
   position:relative;height:calc(100vh - 158px);min-height:560px;border-radius:var(--r-lg);
   background:
-    radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--theme) 20%, transparent), transparent 45%),
+    radial-gradient(circle at 20% 15%, var(--theme-a20), transparent 45%),
     var(--paper-panel);
   border:1px solid var(--line);overflow:hidden;
 }
@@ -288,7 +294,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 .charm-photo{right:2%;bottom:1%;width:266px;background:#fff;padding:13px 13px 44px;box-shadow:var(--shadow);
   transform:rotate(-11deg) translateY(48px);transition:opacity 1.5s cubic-bezier(.16,.6,.15,1), transform 1.5s cubic-bezier(.16,.6,.15,1)}
 .charm-photo.revealed{transform:rotate(-11deg) translateY(0)}
-.charm-photo .shot{height:236px;background:linear-gradient(135deg,var(--theme-soft),color-mix(in srgb,var(--theme) 45%, white));display:grid;place-items:center;color:var(--theme-deep);pointer-events:auto;cursor:pointer;overflow:hidden}
+.charm-photo .shot{height:236px;background:linear-gradient(135deg,var(--theme-soft),var(--theme-45white));display:grid;place-items:center;color:var(--theme-deep);pointer-events:auto;cursor:pointer;overflow:hidden}
 .charm-photo .shot svg{width:40px;height:40px}
 .charm-photo .shot img{width:100%;height:100%;object-fit:contain}
 .charm-photo .cap{text-align:center;font-family:var(--font-hand);color:var(--theme-deep);font-size:18px;margin-top:7px}
@@ -484,6 +490,12 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 <div id="pngStage" style="position:fixed;left:-9999px;top:0"></div>
 
 <script>
+function captureDOM(element, options={}){
+  const lib=window.html2canvas;
+  const fn=typeof lib==="function" ? lib : (lib && typeof lib.default==="function" ? lib.default : null);
+  if(!fn) throw new Error("캡처 라이브러리를 불러오지 못했습니다");
+  return fn(element, options);
+}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const canvas=$("#canvas"), stage=$("#stage"), toast=$("#toast");
 let selected=null, history=[], future=[], restoring=false, stickerSeq=0;
@@ -709,10 +721,27 @@ $("#keyringFile").onchange=e=>{
 };
 
 /* ---------- theme ---------- */
+function hexRgb(hex){
+  const h=String(hex).replace("#","").trim();
+  if(!/^[0-9a-fA-F]{6}$/.test(h)) return [174,198,234];
+  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+}
+function mixRgb(a,b,p){ return a.map((v,i)=>Math.round(v*p+b[i]*(1-p))); }
+function rgbCss(v){ return `rgb(${v[0]}, ${v[1]}, ${v[2]})`; }
 function setTheme(c,record){
   if(record)pushHistory();
-  document.documentElement.style.setProperty("--theme",c);
-  $("#themePicker").value=/^#/.test(c)?c:"#aec6ea";
+  const root=document.documentElement;
+  const t=hexRgb(c), white=[255,255,255], deep=[74,92,134], accent=[52,105,195], black=[0,0,0];
+  root.style.setProperty("--theme",c);
+  root.style.setProperty("--theme-deep",rgbCss(mixRgb(t,deep,.72)));
+  root.style.setProperty("--theme-soft",rgbCss(mixRgb(t,white,.28)));
+  root.style.setProperty("--theme-a16",`rgba(${t.join(",")},.16)`);
+  root.style.setProperty("--accent-a10",`rgba(${accent.join(",")},.10)`);
+  root.style.setProperty("--theme-92white",rgbCss(mixRgb(t,white,.92)));
+  root.style.setProperty("--accent-88black",rgbCss(mixRgb(accent,black,.88)));
+  root.style.setProperty("--theme-a20",`rgba(${t.join(",")},.20)`);
+  root.style.setProperty("--theme-45white",rgbCss(mixRgb(t,white,.45)));
+  $("#themePicker").value=/^#[0-9a-fA-F]{6}$/.test(c)?c:"#aec6ea";
 }
 $$(".swatch[data-theme]").forEach(b=>b.onclick=()=>setTheme(b.dataset.theme,true));
 $("#themePicker").oninput=e=>setTheme(e.target.value,false);
@@ -749,10 +778,11 @@ $("#exportPNG").onclick=async ()=>{
   $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
   flash("이미지를 만드는 중...");
   try{
-    const canvasImg=await html2canvas(document.querySelector(".diary"),{backgroundColor:null,scale:2,useCORS:true});
-    const a=document.createElement("a"); a.download="my-diary.png"; a.href=canvasImg.toDataURL("image/png"); a.click();
+    const canvasImg=await captureDOM(document.querySelector(".diary"),{backgroundColor:null,scale:2,useCORS:true,logging:false});
+    const blob=await new Promise((resolve,reject)=>canvasImg.toBlob(b=>b?resolve(b):reject(new Error("PNG 파일 생성 실패")),"image/png"));
+    downloadBlob(blob,"my-diary.png");
     flash("이미지로 저장했어요 ✓");
-  }catch(err){ flash("이미지 저장 실패: "+(err?.message||String(err))); }
+  }catch(err){ console.error("PNG export failed",err); flash("PNG 실패: "+(err?.message||String(err))); }
 };
 
 /* ---------- animated export (GIF / WebM) ---------- */
@@ -812,7 +842,7 @@ async function captureAnimationFrames(onFrame){
 
   try{
     /* 0초 프레임: 애니메이션이 아직 시작하지 않은 정확한 시작점 */
-    let shot=await html2canvas(target,{
+    let shot=await captureDOM(target,{
       backgroundColor:null, scale:1, useCORS:true, allowTaint:false,
       logging:false, imageTimeout:10000
     });
@@ -826,7 +856,7 @@ async function captureAnimationFrames(onFrame){
       const remain=wanted-(performance.now()-started);
       if(remain>0) await sleep(remain);
 
-      shot=await html2canvas(target,{
+      shot=await captureDOM(target,{
         backgroundColor:null, scale:1, useCORS:true, allowTaint:false,
         logging:false, imageTimeout:10000
       });
