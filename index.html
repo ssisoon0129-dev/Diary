@@ -820,7 +820,7 @@ $("#exportPNG").onclick=async()=>{
   flash("이미지를 만드는 중...");
   try{
     /* stage 전체를 그대로 저장하므로 고정 폴라로이드도 포함된다. */
-    const c=await captureStage(3);
+    const c=await captureStage(2);
     const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("PNG 생성 실패")),"image/png"));
     downloadBlob(blob,"my-diary.png");flash("이미지로 저장했어요 ✓");
   }catch(err){console.error(err);flash("PNG 실패: "+(err?.message||err));}
@@ -889,7 +889,7 @@ async function collectRealFrames(onFrame){
       if(wait>0)await sleep(wait);
       /* 실제 화면에서 현재 transition 값을 읽고 clone에 고정해 캡처 */
       const elapsed=performance.now()-start;
-      const shot=await captureStage(2,gifFrames,elapsed);
+      const shot=await captureStage(1,gifFrames,elapsed);
       await onFrame(shot,i,elapsed);
     }
   }finally{
@@ -909,12 +909,16 @@ $("#exportGIFFile").onclick=async()=>{
   $("#exportMenu").classList.remove("show");flash("실제 등장 애니메이션을 GIF로 저장 중...");
   try{
     const {GIFEncoder,quantize,applyPalette}=await loadGifEncoder();
-    const rect=stage.getBoundingClientRect(),ratio=1,w=Math.round(rect.width*ratio),h=Math.round(rect.height*ratio);
-    const tmp=document.createElement("canvas");tmp.width=w;tmp.height=h;const ctx=tmp.getContext("2d",{willReadFrequently:true});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+    let w=0,h=0;
     const gif=GIFEncoder(),delay=Math.round(1000/EXPORT_FPS);
     await collectRealFrames(async shot=>{
-      ctx.clearRect(0,0,w,h);ctx.drawImage(shot,0,0,w,h);
-      const rgba=ctx.getImageData(0,0,w,h).data,pal=quantize(rgba,256,{format:"rgb565"}),idx=applyPalette(rgba,pal,"rgb565");
+      /* IMPORTANT: do not resize animation frames. The previous drawImage
+         resampling step created horizontal seams on transformed/shadowed layers. */
+      if(!w){w=shot.width;h=shot.height;}
+      const sctx=shot.getContext("2d",{willReadFrequently:true});
+      const rgba=sctx.getImageData(0,0,w,h).data;
+      const pal=quantize(rgba,256,{format:"rgb565"});
+      const idx=applyPalette(rgba,pal,"rgb565");
       gif.writeFrame(idx,w,h,{palette:pal,delay,repeat:0});
     });
     gif.finish();downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");flash("GIF로 저장했어요 ✓");
@@ -927,16 +931,18 @@ $("#exportVideo").onclick=async()=>{
   flash("실제 등장 애니메이션을 동영상으로 저장 중...");
   let stream;
   try{
-    const rect=stage.getBoundingClientRect(),ratio=Math.min(1.5,1800/rect.width),w=Math.round(rect.width*ratio),h=Math.round(rect.height*ratio);
-    const c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+    const rect=stage.getBoundingClientRect(),w=Math.round(rect.width),h=Math.round(rect.height);
+    const c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d");
     stream=c.captureStream(EXPORT_FPS);
     const types=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"],type=types.find(x=>MediaRecorder.isTypeSupported(x))||"";
-    const rec=type?new MediaRecorder(stream,{mimeType:type}):new MediaRecorder(stream),chunks=[];
+    /* Give the recorder enough bitrate so soft shadows/gradients do not macroblock. */
+    const recOpts=type?{mimeType:type,videoBitsPerSecond:12000000}:{videoBitsPerSecond:12000000};
+    const rec=new MediaRecorder(stream,recOpts),chunks=[];
     rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
     const stopped=new Promise((res,rej)=>{rec.onstop=res;rec.onerror=e=>rej(e.error||new Error("녹화 실패"));});
     rec.start(100);
     await collectRealFrames(async shot=>{
-      ctx.clearRect(0,0,w,h);ctx.drawImage(shot,0,0,w,h);
+      ctx.clearRect(0,0,w,h);ctx.drawImage(shot,0,0);
       const tr=stream.getVideoTracks()[0];if(tr&&tr.requestFrame)tr.requestFrame();
       await sleep(5);
     });
