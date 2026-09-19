@@ -889,7 +889,7 @@ async function collectRealFrames(onFrame){
       if(wait>0)await sleep(wait);
       /* 실제 화면에서 현재 transition 값을 읽고 clone에 고정해 캡처 */
       const elapsed=performance.now()-start;
-      const shot=await captureStage(1,gifFrames,elapsed);
+      const shot=await captureStage(2,gifFrames,elapsed);
       await onFrame(shot,i,elapsed);
     }
   }finally{
@@ -931,12 +931,12 @@ $("#exportVideo").onclick=async()=>{
   flash("실제 등장 애니메이션을 동영상으로 저장 중...");
   let stream;
   try{
-    const rect=stage.getBoundingClientRect(),w=Math.round(rect.width),h=Math.round(rect.height);
+    const rect=stage.getBoundingClientRect(),w=Math.round(rect.width*2),h=Math.round(rect.height*2);
     const c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d");
     stream=c.captureStream(EXPORT_FPS);
     const types=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"],type=types.find(x=>MediaRecorder.isTypeSupported(x))||"";
     /* Give the recorder enough bitrate so soft shadows/gradients do not macroblock. */
-    const recOpts=type?{mimeType:type,videoBitsPerSecond:12000000}:{videoBitsPerSecond:12000000};
+    const recOpts=type?{mimeType:type,videoBitsPerSecond:20000000}:{videoBitsPerSecond:20000000};
     const rec=new MediaRecorder(stream,recOpts),chunks=[];
     rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
     const stopped=new Promise((res,rej)=>{rec.onstop=res;rec.onerror=e=>rej(e.error||new Error("녹화 실패"));});
