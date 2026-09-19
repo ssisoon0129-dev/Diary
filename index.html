@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Jua&family=Gowun+Dodum&family=Gaegu:wght@400;700&family=Nanum+Pen+Script&family=Dongle:wght@400;700&family=Gamja+Flower&family=East+Sea+Dokdo&family=Poor+Story&family=Do+Hyeon&family=Song+Myung&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@1.6.7/dist/html2canvas-pro.min.js"></script>
 <style>
 :root{
   --paper:#faf7f0;
@@ -752,7 +752,7 @@ $("#exportPNG").onclick=async ()=>{
     const canvasImg=await html2canvas(document.querySelector(".diary"),{backgroundColor:null,scale:2,useCORS:true});
     const a=document.createElement("a"); a.download="my-diary.png"; a.href=canvasImg.toDataURL("image/png"); a.click();
     flash("이미지로 저장했어요 ✓");
-  }catch(err){ flash("이미지 저장에 실패했어요"); }
+  }catch(err){ flash("이미지 저장 실패: "+(err?.message||String(err))); }
 };
 
 /* ---------- animated export (GIF / WebM) ---------- */
@@ -903,7 +903,7 @@ $("#exportVideo").onclick=async ()=>{
     flash("동영상으로 저장했어요 ✓");
   }catch(err){
     console.error("VIDEO EXPORT ERROR:",err);
-    flash("동영상 저장에 실패했어요 — F12 콘솔의 VIDEO EXPORT ERROR를 확인해주세요");
+    flash("동영상 저장 실패: "+(err?.message||String(err)));
   }finally{
     if(stream) stream.getTracks().forEach(t=>t.stop());
   }
@@ -968,7 +968,7 @@ $("#exportGIFFile").onclick=async ()=>{
     flash("GIF로 저장했어요 ✓");
   }catch(err){
     console.error("GIF EXPORT ERROR:",err);
-    flash("GIF 저장에 실패했어요 — F12 콘솔의 GIF EXPORT ERROR를 확인해주세요");
+    flash("GIF 저장 실패: "+(err?.message||String(err)));
   }
 };
 
