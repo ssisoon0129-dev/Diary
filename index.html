@@ -69,19 +69,6 @@ body{
 }
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-
-/* Editor images are UI objects, not browser-draggable images. */
-.canvas img,
-.charm-photo img,
-.photo-window img,
-.sticker-object img,
-.keyring img{
-  -webkit-user-drag:none;
-  user-drag:none;
-  user-select:none;
-  -webkit-user-select:none;
-  -webkit-touch-callout:none;
-}
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}}
 
@@ -211,10 +198,18 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 
 .canvas{position:absolute;inset:0;z-index:20}
 
-.page-logo{position:absolute;left:-1%;top:-9%;z-index:22;pointer-events:none;max-width:78%;transform:rotate(-5deg)}
+.page-logo{position:absolute;left:13%;top:-9%;z-index:22;pointer-events:none;max-width:78%;
+  opacity:0;transform:translateX(-50%) translateY(-60px) rotate(-5deg);
+  transition:opacity 1.5s cubic-bezier(.16,.6,.15,1), transform 1.5s cubic-bezier(.16,.6,.15,1)}
+.page-logo.revealed{opacity:1;transform:translateX(-50%) translateY(0) rotate(-5deg)}
+.logo-drag{position:absolute;left:50%;bottom:-24px;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;
+  background:#fff;border:2px solid var(--theme-deep);display:grid;place-items:center;color:var(--theme-deep);
+  pointer-events:auto;cursor:grab;box-shadow:var(--shadow-sm);opacity:0;transition:opacity .2s}
+.page-logo:hover .logo-drag,.logo-drag:active{opacity:1}
+.logo-drag svg{width:14px;height:14px}
 .page-logo .word{
   font-family:'Jua',var(--font-hand);font-size:74px;font-weight:400;color:var(--theme-deep);line-height:1.04;
-  position:relative;display:inline-block;pointer-events:auto;cursor:text;outline:0;white-space:normal;
+  position:relative;display:inline-block;pointer-events:auto;cursor:text;outline:0;white-space:normal;text-align:center;
   filter:drop-shadow(0 5px 6px rgba(60,60,40,.22));
 }
 .page-logo .word::before,.page-logo .word::after{
@@ -236,6 +231,18 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 .obj.selected{outline:2px dashed var(--accent);outline-offset:6px;border-radius:4px}
 .obj.selected .delete,.obj.selected .rotate-handle{display:flex}
 
+/* Editor images are UI objects, not browser-draggable images. */
+.canvas img,
+.charm-photo img,
+.photo-window img,
+.sticker-object img,
+.keyring img{
+  -webkit-user-drag:none;
+  user-drag:none;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
 .sticker-object svg,.sticker-object img{
   width:100%;height:100%;display:block;pointer-events:none;object-fit:contain;
   filter:drop-shadow(0 3px 3px rgba(50,45,25,.22));
@@ -246,7 +253,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 
 .polaroid{background:#fff;padding:13px 13px 44px;box-shadow:0 8px 20px rgba(50,50,40,.22);width:248px}
 .photo-window{width:222px;height:222px;background:#e3ddcd;overflow:hidden;position:relative;cursor:zoom-in}
-.photo-window img{width:100%;height:100%;object-fit:cover;transform-origin:center;pointer-events:none}
+.photo-window img{width:100%;height:100%;object-fit:contain;transform-origin:center;pointer-events:none;background:#efe9da}
 .polaroid .cap{
   position:absolute;bottom:10px;left:13px;width:222px;border:0;background:transparent;text-align:center;
   font-family:var(--font-hand);font-size:23px;color:var(--ink);outline:none;
@@ -283,7 +290,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 .charm-photo.revealed{transform:rotate(-11deg) translateY(0)}
 .charm-photo .shot{height:236px;background:linear-gradient(135deg,var(--theme-soft),color-mix(in srgb,var(--theme) 45%, white));display:grid;place-items:center;color:var(--theme-deep);pointer-events:auto;cursor:pointer;overflow:hidden}
 .charm-photo .shot svg{width:40px;height:40px}
-.charm-photo .shot img{width:100%;height:100%;object-fit:cover}
+.charm-photo .shot img{width:100%;height:100%;object-fit:contain}
 .charm-photo .cap{text-align:center;font-family:var(--font-hand);color:var(--theme-deep);font-size:18px;margin-top:7px}
 .charm-photo .cap[contenteditable]{pointer-events:auto;cursor:text;outline:0}
 
@@ -326,11 +333,14 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 8v8l7-4-7-4Z" fill="currentColor" stroke="none"/></svg>
             움직이는 미리보기
           </button>
-          <button id="exportJSON">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-            프로젝트 파일 저장
+          <button id="exportGIFFile">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8v8M12 8v8M16 8v5.5a1.5 1.5 0 0 1-3 0"/></svg>
+            GIF 파일로 저장 (움직이는 애니메이션)
           </button>
-          <div class="hint">GIF 파일 저장은 준비 중이에요</div>
+          <button id="exportVideo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="m22 8-5 4 5 4Z"/></svg>
+            동영상으로 저장 (약 3초)
+          </button>
         </div>
       </div>
     </nav>
@@ -432,8 +442,9 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
           <div class="mat"></div>
           <div class="page left"></div>
           <div class="page right"></div>
-          <div class="page-logo">
+          <div class="page-logo" id="pageLogo">
             <span class="word" contenteditable="true" spellcheck="false" data-text="Diary">Diary</span>
+            <div class="logo-drag" title="이동"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg></div>
           </div>
           <div class="ring-stack r1">
             <svg viewBox="0 0 52 34" xmlns="http://www.w3.org/2000/svg">
@@ -469,6 +480,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 
 <input id="loadFile" type="file" accept=".json,application/json" hidden>
 <input id="charmPhotoFile" type="file" accept="image/*" hidden>
+<input id="replacePhotoFile" type="file" accept="image/*" hidden>
 <div id="pngStage" style="position:fixed;left:-9999px;top:0"></div>
 
 <script>
@@ -533,6 +545,7 @@ function popCharms(){
   els.forEach(el=>el.classList.remove("no-anim"));
   void stage.offsetWidth;
   els.forEach((el,i)=>setTimeout(()=>el.classList.add("revealed"), 30+i*55));
+  revealLogo();
 }
 
 /* ---------- history ---------- */
@@ -630,16 +643,37 @@ $("#photoFile").onchange=e=>{
     const z=Math.max(1,Math.min(5,(+img.dataset.zoom||1)+(ev.deltaY<0?.12:-.12)));
     img.dataset.zoom=z; photoTransform(img);
   },{passive:false});
+  win.addEventListener("dragstart",ev=>ev.preventDefault());
   win.addEventListener("pointerdown",ev=>{
-    ev.stopPropagation(); win.setPointerCapture(ev.pointerId);
+    ev.preventDefault(); ev.stopPropagation(); win.setPointerCapture(ev.pointerId);
     const sx=ev.clientX, sy=ev.clientY, ox=+img.dataset.x||0, oy=+img.dataset.y||0;
-    const mv=m=>{img.dataset.x=ox+m.clientX-sx; img.dataset.y=oy+m.clientY-sy; photoTransform(img)};
-    const up=()=>{win.removeEventListener("pointermove",mv); win.removeEventListener("pointerup",up); pushHistory()};
-    win.addEventListener("pointermove",mv); win.addEventListener("pointerup",up);
+    const theta=(+el.dataset.rotate||0)*Math.PI/180, cosT=Math.cos(theta), sinT=Math.sin(theta);
+    let moved=false;
+    const mv=m=>{
+      const dx=m.clientX-sx, dy=m.clientY-sy;
+      if(Math.abs(dx)>4||Math.abs(dy)>4)moved=true;
+      img.dataset.x=ox+(dx*cosT+dy*sinT); img.dataset.y=oy+(-dx*sinT+dy*cosT);
+      photoTransform(img);
+    };
+    const up=()=>{
+      win.removeEventListener("pointermove",mv); win.removeEventListener("pointerup",up); win.removeEventListener("pointercancel",up);
+      if(!moved){ replaceTargetImg=img; $("#replacePhotoFile").click(); }
+      else pushHistory();
+    };
+    win.addEventListener("pointermove",mv); win.addEventListener("pointerup",up); win.addEventListener("pointercancel",up);
   });
   e.target.value="";
 };
 function photoTransform(img){img.style.transform=`translate(${img.dataset.x||0}px,${img.dataset.y||0}px) scale(${img.dataset.zoom||1})`}
+let replaceTargetImg=null;
+$("#replacePhotoFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f||!replaceTargetImg)return;
+  replaceTargetImg.src=URL.createObjectURL(f);
+  replaceTargetImg.dataset.zoom="1"; replaceTargetImg.dataset.x="0"; replaceTargetImg.dataset.y="0";
+  photoTransform(replaceTargetImg);
+  replaceTargetImg=null; pushHistory();
+  e.target.value="";
+};
 
 /* ---------- text ---------- */
 function syncTextControls(el){
@@ -709,11 +743,6 @@ $("#loadFile").onchange=e=>{
 $("#exportBtn").onclick=()=>$("#exportMenu").classList.toggle("show");
 document.addEventListener("click",e=>{ if(!e.target.closest(".export-wrap")) $("#exportMenu").classList.remove("show"); });
 
-$("#exportJSON").onclick=()=>{
-  const blob=new Blob([JSON.stringify(projectData())],{type:"application/json"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="diary-project.json"; a.click();
-  flash("프로젝트 파일을 저장했어요"); $("#exportMenu").classList.remove("show");
-};
 $("#exportGIF").onclick=()=>{ popCharms(); flash("등장 애니메이션을 재생했어요"); $("#exportMenu").classList.remove("show"); };
 $("#exportPNG").onclick=async ()=>{
   $("#exportMenu").classList.remove("show");
@@ -726,11 +755,102 @@ $("#exportPNG").onclick=async ()=>{
   }catch(err){ flash("이미지 저장에 실패했어요"); }
 };
 
+/* capture the diary's entrance animation as a sequence of canvases (~durationMs long) */
+async function captureDiaryFrames(durationMs, intervalMs, onFrame){
+  const diaryEl=document.querySelector(".diary");
+  $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
+  popCharms();
+  const start=performance.now();
+  while(performance.now()-start < durationMs){
+    const shot=await html2canvas(diaryEl,{backgroundColor:null,scale:1,useCORS:true});
+    onFrame(shot);
+    await new Promise(r=>setTimeout(r,intervalMs));
+  }
+}
+
+$("#exportVideo").onclick=async ()=>{
+  $("#exportMenu").classList.remove("show");
+  if(typeof MediaRecorder==="undefined"){ flash("이 브라우저는 동영상 저장을 지원하지 않아요"); return; }
+  flash("동영상을 만드는 중...");
+  try{
+    const diaryEl=document.querySelector(".diary");
+    const rect=diaryEl.getBoundingClientRect();
+    const rec=document.createElement("canvas");
+    rec.width=Math.round(rect.width); rec.height=Math.round(rect.height);
+    const rctx=rec.getContext("2d");
+    const stream=rec.captureStream(12);
+    const mimeType=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")?"video/webm;codecs=vp9":"video/webm";
+    const recorder=new MediaRecorder(stream,{mimeType});
+    const chunks=[];
+    recorder.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
+    const stopped=new Promise(res=>recorder.onstop=res);
+    recorder.start();
+    await captureDiaryFrames(3000,140,shot=>{ rctx.clearRect(0,0,rec.width,rec.height); rctx.drawImage(shot,0,0,rec.width,rec.height); });
+    recorder.stop();
+    await stopped;
+    const blob=new Blob(chunks,{type:"video/webm"});
+    const a=document.createElement("a"); a.download="my-diary.webm"; a.href=URL.createObjectURL(blob); a.click();
+    flash("동영상으로 저장했어요 ✓");
+  }catch(err){ console.error(err); flash("동영상 저장에 실패했어요"); }
+};
+
+$("#exportGIFFile").onclick=async ()=>{
+  $("#exportMenu").classList.remove("show");
+  flash("GIF를 만드는 중...");
+  try{
+    const {GIFEncoder,quantize,applyPalette}=await import("https://cdn.jsdelivr.net/npm/gifenc@1.0.3/+esm");
+    const diaryEl=document.querySelector(".diary");
+    const rect=diaryEl.getBoundingClientRect();
+    const w=Math.max(1,Math.round(rect.width/2)), h=Math.max(1,Math.round(rect.height/2));
+    const tmp=document.createElement("canvas"); tmp.width=w; tmp.height=h;
+    const tctx=tmp.getContext("2d");
+    const gif=GIFEncoder();
+    const delay=180;
+    await captureDiaryFrames(3000,delay,shot=>{
+      tctx.clearRect(0,0,w,h); tctx.drawImage(shot,0,0,w,h);
+      const {data}=tctx.getImageData(0,0,w,h);
+      const palette=quantize(data,256);
+      const index=applyPalette(data,palette);
+      gif.writeFrame(index,w,h,{palette,delay});
+    });
+    gif.finish();
+    const blob=new Blob([gif.bytes()],{type:"image/gif"});
+    const a=document.createElement("a"); a.download="my-diary.gif"; a.href=URL.createObjectURL(blob); a.click();
+    flash("GIF로 저장했어요 ✓");
+  }catch(err){
+    console.error(err);
+    flash("GIF 저장에 실패했어요 — 동영상 저장을 이용해주세요");
+  }
+};
+
 const pageLogoWord=$(".page-logo .word");
 if(pageLogoWord)pageLogoWord.addEventListener("input",()=>{pageLogoWord.dataset.text=pageLogoWord.textContent});
 
-$("#charmPhotoShot").addEventListener("click",()=>{ if(!$("#charmPhotoShot").querySelector("img")) $("#charmPhotoFile").click(); });
-$("#charmPhotoShot").addEventListener("dblclick",()=>$("#charmPhotoFile").click());
+const pageLogo=$("#pageLogo"), logoDrag=$(".logo-drag");
+const logoBaseLeft=13, logoBaseTop=-9;
+let logoOffL=0, logoOffT=0;
+logoDrag.addEventListener("pointerdown",ev=>{
+  ev.preventDefault(); ev.stopPropagation(); logoDrag.setPointerCapture(ev.pointerId);
+  const diaryRect=document.querySelector(".diary").getBoundingClientRect();
+  const sx=ev.clientX, sy=ev.clientY, ol=logoOffL, ot=logoOffT;
+  const mv=m=>{
+    logoOffL=ol+((m.clientX-sx)/diaryRect.width)*100;
+    logoOffT=ot+((m.clientY-sy)/diaryRect.height)*100;
+    pageLogo.style.left=(logoBaseLeft+logoOffL)+"%";
+    pageLogo.style.top=(logoBaseTop+logoOffT)+"%";
+  };
+  const up=()=>{ logoDrag.removeEventListener("pointermove",mv); logoDrag.removeEventListener("pointerup",up); logoDrag.removeEventListener("pointercancel",up); };
+  logoDrag.addEventListener("pointermove",mv); logoDrag.addEventListener("pointerup",up); logoDrag.addEventListener("pointercancel",up);
+});
+function revealLogo(){
+  pageLogo.style.transition="none";
+  pageLogo.classList.remove("revealed");
+  void pageLogo.offsetWidth;
+  pageLogo.style.transition="";
+  void pageLogo.offsetWidth;
+  pageLogo.classList.add("revealed");
+}
+
 $("#charmPhotoFile").onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
   $("#charmPhotoShot").innerHTML=`<img src="${URL.createObjectURL(f)}" data-zoom="1" data-x="0" data-y="0">`;
@@ -741,41 +861,31 @@ function wireCharmPhoto(){
   const shot=$("#charmPhotoShot");
   if(!shot.dataset.wired){
     shot.dataset.wired="1";
-
-    /* 폴라로이드 프레임은 고정.
-       사진 영역 안의 이미지 자체만 확대/축소 + 클릭 드래그로 위치 조정. */
     shot.addEventListener("dragstart",ev=>ev.preventDefault());
     shot.addEventListener("wheel",ev=>{
       const im=shot.querySelector("img"); if(!im)return;
-      ev.preventDefault();
-      ev.stopPropagation();
+      ev.preventDefault(); ev.stopPropagation();
       const z=Math.max(1,Math.min(5,(+im.dataset.zoom||1)+(ev.deltaY<0?.12:-.12)));
-      im.dataset.zoom=z;
-      photoTransform(im);
+      im.dataset.zoom=z; photoTransform(im);
     },{passive:false});
-
     shot.addEventListener("pointerdown",ev=>{
-      const im=shot.querySelector("img"); if(!im)return;
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      shot.setPointerCapture(ev.pointerId);
-      const sx=ev.clientX, sy=ev.clientY;
-      const ox=+im.dataset.x||0, oy=+im.dataset.y||0;
-
+      const im=shot.querySelector("img");
+      if(!im){ $("#charmPhotoFile").click(); return; }
+      ev.preventDefault(); ev.stopPropagation(); shot.setPointerCapture(ev.pointerId);
+      const sx=ev.clientX, sy=ev.clientY, ox=+im.dataset.x||0, oy=+im.dataset.y||0;
+      const theta=-11*Math.PI/180, cosT=Math.cos(theta), sinT=Math.sin(theta);
+      let moved=false;
       const mv=m=>{
-        im.dataset.x=ox+(m.clientX-sx);
-        im.dataset.y=oy+(m.clientY-sy);
+        const dx=m.clientX-sx, dy=m.clientY-sy;
+        if(Math.abs(dx)>4||Math.abs(dy)>4)moved=true;
+        im.dataset.x=ox+(dx*cosT+dy*sinT); im.dataset.y=oy+(-dx*sinT+dy*cosT);
         photoTransform(im);
       };
       const up=()=>{
-        shot.removeEventListener("pointermove",mv);
-        shot.removeEventListener("pointerup",up);
-        shot.removeEventListener("pointercancel",up);
+        shot.removeEventListener("pointermove",mv); shot.removeEventListener("pointerup",up); shot.removeEventListener("pointercancel",up);
+        if(!moved) $("#charmPhotoFile").click();
       };
-      shot.addEventListener("pointermove",mv);
-      shot.addEventListener("pointerup",up);
-      shot.addEventListener("pointercancel",up);
+      shot.addEventListener("pointermove",mv); shot.addEventListener("pointerup",up); shot.addEventListener("pointercancel",up);
     });
   }
 }
