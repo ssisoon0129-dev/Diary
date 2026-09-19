@@ -778,7 +778,8 @@ $("#exportPNG").onclick=async ()=>{
   $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
   flash("이미지를 만드는 중...");
   try{
-    const canvasImg=await captureDOM(document.querySelector(".diary"),{backgroundColor:null,scale:2,useCORS:true,logging:false});
+    const rect=stage.getBoundingClientRect();
+    const canvasImg=await captureDOM(stage,{backgroundColor:null,scale:2,useCORS:true,logging:false,width:Math.ceil(rect.width),height:Math.ceil(rect.height),scrollX:0,scrollY:-window.scrollY});
     const blob=await new Promise((resolve,reject)=>canvasImg.toBlob(b=>b?resolve(b):reject(new Error("PNG 파일 생성 실패")),"image/png"));
     downloadBlob(blob,"my-diary.png");
     flash("이미지로 저장했어요 ✓");
@@ -786,220 +787,182 @@ $("#exportPNG").onclick=async ()=>{
 };
 
 /* ---------- animated export (GIF / WebM) ---------- */
-const EXPORT_DURATION = 2600;   // 등장 애니메이션 시작점부터 약 2.6초
-const EXPORT_FPS = 8;           // 브라우저 부담을 줄이면서 움직임은 유지
-
+const EXPORT_DURATION = 2600;
+const EXPORT_FPS = 10;
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
 function downloadBlob(blob, filename){
   if(!blob || !blob.size) throw new Error("생성된 파일이 비어 있습니다.");
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url; a.download=filename;
-  document.body.appendChild(a); a.click(); a.remove();
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
-/* 캡처 직전에 애니메이션을 정확히 처음 상태로 되감는다. */
-function resetExportAnimation(){
-  $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
-
-  $$(".charm").forEach(el=>{
-    el.classList.add("no-anim");
-    el.classList.remove("revealed","pulse");
-  });
-
-  if(pageLogo){
-    pageLogo.style.transition="none";
-    pageLogo.classList.remove("revealed");
-  }
-
-  /* 시작 상태를 브라우저에 실제로 한 번 그리게 한다. */
-  void stage.offsetWidth;
-}
-
-function startExportAnimation(){
-  $$(".charm").forEach(el=>el.classList.remove("no-anim"));
-  if(pageLogo) pageLogo.style.transition="";
-  void stage.offsetWidth;
-
-  $$(".charm").forEach((el,i)=>setTimeout(()=>el.classList.add("revealed"),30+i*55));
-  if(pageLogo) pageLogo.classList.add("revealed");
-}
-
 /*
-  화면에 보이는 실제 애니메이션을 약 2.6초 동안 순서대로 캡처한다.
-  charm-photo가 .diary 밖에 있으므로 .diary가 아니라 #stage 전체를 캡처한다.
+  html2canvas는 매 프레임 DOM을 복제하므로 animated GIF가 첫 프레임으로 되돌아간다.
+  그래서 GIF 이미지는 먼저 직접 디코딩하고, export 시각에 맞는 프레임을 정지 이미지로 주입한다.
 */
+async function loadGifDecoder(){
+  const urls=[
+    "https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm",
+    "https://esm.sh/gifuct-js@2.1.2"
+  ];
+  let last;
+  for(const url of urls){
+    try{
+      const m=await import(url);
+      if(m.parseGIF && m.decompressFrames) return m;
+    }catch(e){last=e}
+  }
+  throw last || new Error("GIF 디코더를 불러오지 못했습니다.");
+}
+
+async function decodeAnimatedImages(){
+  const imgs=[...stage.querySelectorAll("img")];
+  const gifImgs=[];
+  for(const img of imgs){
+    try{
+      const res=await fetch(img.currentSrc||img.src);
+      const buf=await res.arrayBuffer();
+      const sig=new TextDecoder("ascii").decode(new Uint8Array(buf,0,Math.min(6,buf.byteLength)));
+      if(!sig.startsWith("GIF8")) continue;
+      gifImgs.push({img,buf});
+    }catch(e){}
+  }
+  if(!gifImgs.length) return [];
+  const {parseGIF,decompressFrames}=await loadGifDecoder();
+  const decoded=[];
+  for(const item of gifImgs){
+    const parsed=parseGIF(item.buf), frames=decompressFrames(parsed,true);
+    if(frames.length<2) continue;
+    const W=parsed.lsd.width, H=parsed.lsd.height;
+    const work=document.createElement("canvas"); work.width=W; work.height=H;
+    const ctx=work.getContext("2d");
+    const urls=[], delays=[];
+    let previous=null;
+    for(const fr of frames){
+      if(fr.disposalType===3) previous=ctx.getImageData(0,0,W,H);
+      const patch=document.createElement("canvas"); patch.width=fr.dims.width; patch.height=fr.dims.height;
+      patch.getContext("2d").putImageData(new ImageData(fr.patch,fr.dims.width,fr.dims.height),0,0);
+      ctx.drawImage(patch,fr.dims.left,fr.dims.top);
+      urls.push(work.toDataURL("image/png"));
+      delays.push(Math.max(20,(fr.delay||10)*10));
+      if(fr.disposalType===2) ctx.clearRect(fr.dims.left,fr.dims.top,fr.dims.width,fr.dims.height);
+      else if(fr.disposalType===3 && previous) ctx.putImageData(previous,0,0);
+    }
+    decoded.push({img:item.img, original:item.img.src, urls, delays, total:delays.reduce((a,b)=>a+b,0)});
+  }
+  return decoded;
+}
+function gifFrameAt(g,t){
+  if(!g.total) return 0;
+  let x=t%g.total;
+  for(let i=0;i<g.delays.length;i++){ if(x<g.delays[i]) return i; x-=g.delays[i]; }
+  return g.delays.length-1;
+}
+async function applyGifTime(gifs,t){
+  const waits=[];
+  for(const g of gifs){
+    const src=g.urls[gifFrameAt(g,t)];
+    if(g.img.src!==src){
+      g.img.src=src;
+      if(!g.img.complete) waits.push(new Promise(r=>{g.img.onload=g.img.onerror=r}));
+    }
+  }
+  if(waits.length) await Promise.all(waits);
+}
+function restoreAnimatedImages(gifs){ for(const g of gifs) g.img.src=g.original; }
+
+function setRevealAt(ms){
+  const dur=1500;
+  $$(".charm").forEach((el,i)=>{
+    const p=Math.max(0,Math.min(1,(ms-(30+i*55))/dur));
+    const eased=1-Math.pow(1-p,3);
+    el.classList.add("no-anim"); el.classList.remove("revealed");
+    el.style.opacity=String(eased);
+    if(el.classList.contains("charm-photo")) el.style.transform=`rotate(-11deg) translateY(${48*(1-eased)}px)`;
+    else el.style.transform=`translateY(${48*(1-eased)}px)`;
+  });
+  if(pageLogo){
+    const p=Math.max(0,Math.min(1,ms/dur)), eased=1-Math.pow(1-p,3);
+    pageLogo.style.transition="none"; pageLogo.classList.remove("revealed");
+    pageLogo.style.opacity=String(eased);
+    pageLogo.style.transform=`translateX(-50%) translateY(${-60*(1-eased)}px) rotate(-5deg)`;
+  }
+}
+function clearRevealOverrides(){
+  $$(".charm").forEach(el=>{el.classList.remove("no-anim");el.style.opacity="";el.style.transform="";el.classList.add("revealed")});
+  if(pageLogo){pageLogo.style.transition="";pageLogo.style.opacity="";pageLogo.style.transform="";pageLogo.classList.add("revealed")}
+}
+
 async function captureAnimationFrames(onFrame){
-  const target=stage;
-  const interval=1000/EXPORT_FPS;
-  const frameCount=Math.ceil(EXPORT_DURATION/interval);
-  const oldToastVisibility=toast.style.visibility;
-  toast.style.visibility="hidden";
-
-  resetExportAnimation();
-
+  const interval=1000/EXPORT_FPS, frameCount=Math.ceil(EXPORT_DURATION/interval);
+  const oldToast=toast.style.visibility; toast.style.visibility="hidden";
+  $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
+  let gifs=[];
   try{
-    /* 0초 프레임: 애니메이션이 아직 시작하지 않은 정확한 시작점 */
-    let shot=await captureDOM(target,{
-      backgroundColor:null, scale:1, useCORS:true, allowTaint:false,
-      logging:false, imageTimeout:10000
-    });
-    await onFrame(shot,0,frameCount);
-
-    startExportAnimation();
-    const started=performance.now();
-
-    for(let i=1;i<frameCount;i++){
-      const wanted=i*interval;
-      const remain=wanted-(performance.now()-started);
-      if(remain>0) await sleep(remain);
-
-      shot=await captureDOM(target,{
-        backgroundColor:null, scale:1, useCORS:true, allowTaint:false,
-        logging:false, imageTimeout:10000
-      });
+    gifs=await decodeAnimatedImages();
+    for(let i=0;i<frameCount;i++){
+      const t=i*interval;
+      setRevealAt(t);
+      await applyGifTime(gifs,t);
+      await new Promise(requestAnimationFrame);
+      const rect=stage.getBoundingClientRect();
+      const shot=await captureDOM(stage,{backgroundColor:null,scale:1,useCORS:true,allowTaint:false,logging:false,imageTimeout:10000,width:Math.ceil(rect.width),height:Math.ceil(rect.height),scrollX:0,scrollY:-window.scrollY});
       await onFrame(shot,i,frameCount);
     }
   }finally{
-    toast.style.visibility=oldToastVisibility;
-    /* 저장이 끝난 뒤에는 완성된 상태로 둔다. */
-    $$(".charm").forEach(el=>{el.classList.remove("no-anim");el.classList.add("revealed")});
-    if(pageLogo){pageLogo.style.transition="";pageLogo.classList.add("revealed")}
+    restoreAnimatedImages(gifs); clearRevealOverrides(); toast.style.visibility=oldToast;
   }
 }
 
 function bestVideoMime(){
   if(typeof MediaRecorder==="undefined") return "";
-  const candidates=[
-    "video/webm;codecs=vp9",
-    "video/webm;codecs=vp8",
-    "video/webm"
-  ];
-  return candidates.find(t=>MediaRecorder.isTypeSupported(t)) || "";
+  return ["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(t=>MediaRecorder.isTypeSupported(t))||"";
 }
-
 $("#exportVideo").onclick=async ()=>{
   $("#exportMenu").classList.remove("show");
-  if(typeof MediaRecorder==="undefined" || !HTMLCanvasElement.prototype.captureStream){
-    flash("이 브라우저는 동영상 저장을 지원하지 않아요");
-    return;
-  }
-
-  flash("동영상을 만드는 중... 약 3초만 기다려줘");
-  let stream=null;
+  if(typeof MediaRecorder==="undefined" || !HTMLCanvasElement.prototype.captureStream){flash("이 브라우저는 동영상 저장을 지원하지 않아요");return}
+  flash("동영상을 만드는 중..."); let stream=null;
   try{
-    const rect=stage.getBoundingClientRect();
-    const maxW=1100;
-    const ratio=Math.min(1,maxW/Math.max(1,rect.width));
-    const w=Math.max(2,Math.round(rect.width*ratio));
-    const h=Math.max(2,Math.round(rect.height*ratio));
-
-    const recCanvas=document.createElement("canvas");
-    recCanvas.width=w; recCanvas.height=h;
-    const rctx=recCanvas.getContext("2d",{alpha:true});
-    if(!rctx) throw new Error("동영상 캔버스를 만들 수 없습니다.");
-
+    const rect=stage.getBoundingClientRect(), maxW=1100, ratio=Math.min(1,maxW/Math.max(1,rect.width));
+    const w=Math.max(2,Math.round(rect.width*ratio)), h=Math.max(2,Math.round(rect.height*ratio));
+    const recCanvas=document.createElement("canvas"); recCanvas.width=w; recCanvas.height=h;
+    const ctx=recCanvas.getContext("2d",{alpha:true});
     stream=recCanvas.captureStream(EXPORT_FPS);
-    const mimeType=bestVideoMime();
-    const recorder=mimeType ? new MediaRecorder(stream,{mimeType}) : new MediaRecorder(stream);
-    const chunks=[];
-
-    recorder.addEventListener("dataavailable",e=>{ if(e.data && e.data.size) chunks.push(e.data); });
-    const stopped=new Promise((resolve,reject)=>{
-      recorder.addEventListener("stop",resolve,{once:true});
-      recorder.addEventListener("error",e=>reject(e.error||new Error("MediaRecorder 오류")),{once:true});
-    });
-
-    recorder.start(250);
-
+    const mime=bestVideoMime(), recorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream), chunks=[];
+    recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
+    const stopped=new Promise((res,rej)=>{recorder.onstop=res;recorder.onerror=e=>rej(e.error||new Error("MediaRecorder 오류"))});
+    recorder.start(200);
     await captureAnimationFrames(async shot=>{
-      rctx.clearRect(0,0,w,h);
-      rctx.drawImage(shot,0,0,w,h);
-      /* captureStream의 수동 프레임 요청을 지원하는 브라우저에서는 즉시 반영 */
-      const track=stream.getVideoTracks()[0];
-      if(track && typeof track.requestFrame==="function") track.requestFrame();
-      await sleep(20);
+      ctx.clearRect(0,0,w,h);ctx.drawImage(shot,0,0,w,h);
+      const tr=stream.getVideoTracks()[0];if(tr&&tr.requestFrame)tr.requestFrame();
+      await sleep(Math.round(1000/EXPORT_FPS));
     });
-
-    await sleep(180);
-    recorder.stop();
-    await stopped;
-
-    const type=recorder.mimeType || mimeType || "video/webm";
-    const blob=new Blob(chunks,{type});
-    downloadBlob(blob,"my-diary.webm");
+    recorder.stop(); await stopped;
+    downloadBlob(new Blob(chunks,{type:recorder.mimeType||mime||"video/webm"}),"my-diary.webm");
     flash("동영상으로 저장했어요 ✓");
-  }catch(err){
-    console.error("VIDEO EXPORT ERROR:",err);
-    flash("동영상 저장 실패: "+(err?.message||String(err)));
-  }finally{
-    if(stream) stream.getTracks().forEach(t=>t.stop());
-  }
+  }catch(err){console.error(err);flash("동영상 저장 실패: "+(err?.message||String(err)))}finally{if(stream)stream.getTracks().forEach(t=>t.stop())}
 };
-
 async function loadGifEncoder(){
-  /* 한 CDN이 막혀도 다른 CDN으로 한 번 더 시도한다. */
-  const urls=[
-    "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/+esm",
-    "https://unpkg.com/gifenc@1.0.3/dist/gifenc.esm.js"
-  ];
-  let lastErr=null;
-  for(const url of urls){
-    try{
-      const mod=await import(url);
-      if(mod.GIFEncoder && mod.quantize && mod.applyPalette) return mod;
-    }catch(err){ lastErr=err; }
-  }
-  throw lastErr || new Error("GIF 인코더를 불러오지 못했습니다.");
+  let last;for(const url of ["https://cdn.jsdelivr.net/npm/gifenc@1.0.3/+esm","https://unpkg.com/gifenc@1.0.3/dist/gifenc.esm.js"]){try{const m=await import(url);if(m.GIFEncoder&&m.quantize&&m.applyPalette)return m}catch(e){last=e}}
+  throw last||new Error("GIF 인코더를 불러오지 못했습니다.");
 }
-
 $("#exportGIFFile").onclick=async ()=>{
-  $("#exportMenu").classList.remove("show");
-  flash("GIF를 만드는 중... 약 3초만 기다려줘");
-
+  $("#exportMenu").classList.remove("show");flash("GIF를 만드는 중...");
   try{
     const {GIFEncoder,quantize,applyPalette}=await loadGifEncoder();
-    const rect=stage.getBoundingClientRect();
-    /* GIF는 파일 크기/메모리 때문에 영상보다 조금 작게 저장 */
-    const maxW=720;
-    const ratio=Math.min(1,maxW/Math.max(1,rect.width));
-    const w=Math.max(2,Math.round(rect.width*ratio));
-    const h=Math.max(2,Math.round(rect.height*ratio));
-
-    const tmp=document.createElement("canvas");
-    tmp.width=w; tmp.height=h;
-    const tctx=tmp.getContext("2d",{willReadFrequently:true,alpha:true});
-    if(!tctx) throw new Error("GIF 캔버스를 만들 수 없습니다.");
-
-    const gif=GIFEncoder();
-    const delay=Math.round(1000/EXPORT_FPS);
-    let written=0;
-
+    const rect=stage.getBoundingClientRect(),maxW=720,ratio=Math.min(1,maxW/Math.max(1,rect.width));
+    const w=Math.max(2,Math.round(rect.width*ratio)),h=Math.max(2,Math.round(rect.height*ratio));
+    const tmp=document.createElement("canvas");tmp.width=w;tmp.height=h;const ctx=tmp.getContext("2d",{willReadFrequently:true,alpha:true});
+    const gif=GIFEncoder(),delay=Math.round(1000/EXPORT_FPS);let written=0;
     await captureAnimationFrames(async shot=>{
-      tctx.clearRect(0,0,w,h);
-      tctx.drawImage(shot,0,0,w,h);
-      const rgba=tctx.getImageData(0,0,w,h).data;
-      const palette=quantize(rgba,256,{format:"rgb565"});
-      const index=applyPalette(rgba,palette,"rgb565");
-      gif.writeFrame(index,w,h,{palette,delay,repeat:0});
-      written++;
-      /* 메인 스레드를 잠깐 양보해서 페이지가 '멈춘 것처럼' 보이지 않게 함 */
-      await sleep(0);
+      ctx.clearRect(0,0,w,h);ctx.drawImage(shot,0,0,w,h);
+      const rgba=ctx.getImageData(0,0,w,h).data,palette=quantize(rgba,256,{format:"rgb565"}),index=applyPalette(rgba,palette,"rgb565");
+      gif.writeFrame(index,w,h,{palette,delay,repeat:0});written++;await sleep(0);
     });
-
-    if(!written) throw new Error("GIF 프레임이 생성되지 않았습니다.");
-    gif.finish();
-    const bytes=gif.bytes();
-    if(!bytes || !bytes.length) throw new Error("GIF 데이터가 비어 있습니다.");
-
-    downloadBlob(new Blob([bytes],{type:"image/gif"}),"my-diary.gif");
-    flash("GIF로 저장했어요 ✓");
-  }catch(err){
-    console.error("GIF EXPORT ERROR:",err);
-    flash("GIF 저장 실패: "+(err?.message||String(err)));
-  }
+    if(!written)throw new Error("GIF 프레임이 생성되지 않았습니다.");gif.finish();
+    downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");flash("GIF로 저장했어요 ✓");
+  }catch(err){console.error(err);flash("GIF 저장 실패: "+(err?.message||String(err)))}
 };
 
 const pageLogoWord=$(".page-logo .word");
