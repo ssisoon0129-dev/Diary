@@ -929,8 +929,8 @@ $("#exportBtn").onclick=()=>$("#exportMenu").classList.toggle("show");
 document.addEventListener("click",e=>{ if(!e.target.closest(".export-wrap")) $("#exportMenu").classList.remove("show"); });
 $("#exportGIF").onclick=()=>{ popCharms(); flash("등장 애니메이션을 재생했어요"); $("#exportMenu").classList.remove("show"); };
 
-const EXPORT_DURATION=2600;
-const EXPORT_FPS=10;
+const EXPORT_DURATION=3000;
+const EXPORT_FPS=15;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function downloadBlob(blob,name){
   if(!blob||!blob.size) throw new Error("생성된 파일이 비어 있습니다.");
