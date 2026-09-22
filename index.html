@@ -589,6 +589,11 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 <div id="pngStage" style="position:fixed;left:-9999px;top:0"></div>
 
 <script>
+const EXPORT_TARGET_WIDTH=700;
+function exportScale(){
+  const w=stage.getBoundingClientRect().width;
+  return w>0 ? EXPORT_TARGET_WIDTH/w : 1;
+}
 function captureDOM(element, options={}){
   const lib=window.html2canvas;
   const fn=typeof lib==="function" ? lib : (lib && typeof lib.default==="function" ? lib.default : null);
@@ -978,7 +983,7 @@ $("#exportPNG").onclick=async()=>{
   flash("이미지를 만드는 중...");
   try{
     /* stage 전체를 그대로 저장하므로 고정 폴라로이드도 포함된다. */
-    const c=await captureStage(2);
+    const c=await captureStage(exportScale());
     const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("PNG 생성 실패")),"image/png"));
     downloadBlob(blob,"my-diary.png");flash("이미지로 저장했어요 ✓");
   }catch(err){console.error(err);flash("PNG 실패: "+(err?.message||err));}
@@ -1050,7 +1055,7 @@ async function collectRealFrames(onFrame){
       if(wait>0)await sleep(wait);
       /* 실제 화면에서 현재 transition 값을 읽고 clone에 고정해 캡처 */
       const elapsed=performance.now()-start;
-      const shot=await captureStage(2,gifFrames,elapsed);
+      const shot=await captureStage(exportScale(),gifFrames,elapsed);
       await onFrame(shot,i,elapsed);
     }
   }finally{
@@ -1097,7 +1102,7 @@ $("#exportVideo").onclick=async()=>{
   flash("실제 등장 애니메이션을 동영상으로 저장 중...");
   let stream;
   try{
-    const rect=stage.getBoundingClientRect(),w=Math.round(rect.width*2),h=Math.round(rect.height*2);
+    const rect=stage.getBoundingClientRect(),sc=exportScale(),w=Math.round(rect.width*sc),h=Math.round(rect.height*sc);
     const c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d");
     stream=c.captureStream(EXPORT_FPS);
     const types=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"],type=types.find(x=>MediaRecorder.isTypeSupported(x))||"";
