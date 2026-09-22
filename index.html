@@ -1083,7 +1083,7 @@ $("#exportGIFFile").onclick=async()=>{
       /* Use the ACTUAL measured gap between captures as this frame's delay, not a fixed
          1000/FPS value — capturing is slower than the target interval, so a fixed delay
          compresses the real animation time and makes the exported GIF play too fast. */
-      const frameDelay=Math.max(20,Math.round(elapsed-prevElapsed));
+      const frameDelay=Math.max(20,Math.min(90,Math.round(elapsed-prevElapsed)));
       prevElapsed=elapsed;
       gif.writeFrame(idx,w,h,{palette:pal,delay:frameDelay,repeat:0});
     });
