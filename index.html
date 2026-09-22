@@ -930,7 +930,7 @@ document.addEventListener("click",e=>{ if(!e.target.closest(".export-wrap")) $("
 $("#exportGIF").onclick=()=>{ popCharms(); flash("등장 애니메이션을 재생했어요"); $("#exportMenu").classList.remove("show"); };
 
 const EXPORT_DURATION=2600;
-const EXPORT_FPS=10;
+const EXPORT_FPS=30;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function downloadBlob(blob,name){
   if(!blob||!blob.size) throw new Error("생성된 파일이 비어 있습니다.");
@@ -950,6 +950,8 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
   }));
   return captureDOM(stage,{
     backgroundColor:null,scale,useCORS:true,allowTaint:false,logging:false,imageTimeout:10000,
+    windowWidth:document.documentElement.clientWidth,
+    windowHeight:document.documentElement.clientHeight,
     onclone:doc=>{
       const cloneStage=doc.getElementById("stage");
       if(!cloneStage)return;
@@ -1068,9 +1070,9 @@ $("#exportGIFFile").onclick=async()=>{
   $("#exportMenu").classList.remove("show");flash("실제 등장 애니메이션을 GIF로 저장 중...");
   try{
     const {GIFEncoder,quantize,applyPalette}=await loadGifEncoder();
-    let w=0,h=0;
-    const gif=GIFEncoder(),delay=Math.round(1000/EXPORT_FPS);
-    await collectRealFrames(async shot=>{
+    let w=0,h=0,prevElapsed=0;
+    const gif=GIFEncoder();
+    await collectRealFrames(async (shot,i,elapsed)=>{
       /* IMPORTANT: do not resize animation frames. The previous drawImage
          resampling step created horizontal seams on transformed/shadowed layers. */
       if(!w){w=shot.width;h=shot.height;}
@@ -1078,7 +1080,12 @@ $("#exportGIFFile").onclick=async()=>{
       const rgba=sctx.getImageData(0,0,w,h).data;
       const pal=quantize(rgba,256,{format:"rgb565"});
       const idx=applyPalette(rgba,pal,"rgb565");
-      gif.writeFrame(idx,w,h,{palette:pal,delay,repeat:0});
+      /* Use the ACTUAL measured gap between captures as this frame's delay, not a fixed
+         1000/FPS value — capturing is slower than the target interval, so a fixed delay
+         compresses the real animation time and makes the exported GIF play too fast. */
+      const frameDelay=Math.max(20,Math.round(elapsed-prevElapsed));
+      prevElapsed=elapsed;
+      gif.writeFrame(idx,w,h,{palette:pal,delay:frameDelay,repeat:0});
     });
     gif.finish();downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");flash("GIF로 저장했어요 ✓");
   }catch(err){console.error(err);flash("GIF 실패: "+(err?.message||err));}
