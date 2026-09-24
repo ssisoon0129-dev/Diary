@@ -263,7 +263,34 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 }
 /* lighter preview of the same outline inside the sidebar tray */
 #stickerGrid .asset svg{filter:drop-shadow(0 1px 1px rgba(50,45,25,.16))}
-.text-object{min-width:70px;padding:6px 8px;white-space:pre-wrap;line-height:1.4;outline:0}
+.text-object{width:max-content;max-width:none;height:auto!important;min-height:42px;padding:6px 18px 12px 8px;white-space:pre;overflow:visible;line-height:1.4;outline:0;word-break:normal;overflow-wrap:normal}
+.text-object .text-content{display:block;min-height:1.4em;outline:0;white-space:pre}
+.text-object.editing{cursor:text}
+.text-object.editing .text-content{cursor:text;user-select:text}
+.text-items-title{margin:16px 0 8px;font-size:12px;color:var(--ink-soft);font-weight:600}
+.text-items{display:flex;flex-direction:column;gap:9px}
+.text-item{border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--paper) 92%,var(--theme) 8%);overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.text-item.active{border-color:var(--theme-deep);box-shadow:0 0 0 2px var(--theme-a16)}
+.text-item-head{display:flex;gap:7px;align-items:center;padding:8px}
+.text-item .text-preview{flex:1;min-width:0;padding:3px 4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.text-edit-btn{flex:none;width:auto!important;min-width:52px;border:1px solid color-mix(in srgb,var(--theme-deep) 38%,var(--line))!important;border-radius:999px!important;background:var(--theme-soft)!important;color:var(--theme-deep)!important;padding:6px 10px!important;font-size:11.5px;font-weight:600;cursor:pointer;transition:.15s}
+.text-edit-btn:hover{background:var(--theme)!important;color:#fff!important;border-color:var(--theme-deep)!important}
+.text-inline-editor{display:none;padding:10px;border-top:1px solid var(--line);background:var(--paper)}
+.text-item.edit-open .text-inline-editor{display:block}
+.text-inline-editor textarea{min-height:58px;margin:0 0 8px}
+.text-inline-grid{display:grid;grid-template-columns:1fr 72px;gap:7px}
+.text-inline-editor label{display:block;font-size:10.5px;color:var(--ink-soft);margin:0 0 4px}
+.text-inline-editor select,.text-inline-editor input[type=number]{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--paper-panel);padding:7px 8px;font-size:12px}
+.text-size-wrap{position:relative}.text-size-wrap:after{content:'PT';position:absolute;right:7px;bottom:8px;font-size:9px;color:var(--ink-soft);pointer-events:none}.text-size-wrap input{padding-right:25px!important}
+.text-object .text-resize-handle{display:none;position:absolute;right:-10px;bottom:-10px;width:15px;height:15px;z-index:8;cursor:nwse-resize;background:#fff;border:1.5px solid var(--theme-deep);border-radius:2px;box-shadow:0 2px 5px rgba(0,0,0,.16)}
+.text-object.selected .text-resize-handle{display:block}
+/* resize handle for sticker / polaroid / keyring objects */
+.obj .object-resize-handle{display:none;position:absolute;right:-10px;bottom:-10px;width:15px;height:15px;z-index:12;cursor:nwse-resize;background:#fff;border:1.5px solid var(--theme-deep);border-radius:2px;box-shadow:0 2px 5px rgba(0,0,0,.16);touch-action:none}
+.obj.selected .object-resize-handle{display:block}
+.text-object .object-resize-handle{display:none!important}
+/* uploaded sticker images get a clean white sticker-cut outline */
+.sticker-object.uploaded-sticker img{filter:drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 3px rgba(50,45,25,.22));}
+
 
 .polaroid{background:#fff;padding:13px 13px 44px;box-shadow:0 8px 20px rgba(50,50,40,.22);width:248px}
 .photo-window{width:222px;height:222px;background:#e3ddcd;overflow:hidden;position:relative;cursor:zoom-in}
@@ -436,13 +463,15 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
           </div>
           <div class="row2 field">
             <div>
-              <label>글자 크기</label>
-              <input type="range" id="fontSize" min="12" max="48" value="19" style="width:100%">
+              <label>글자 크기 (PT)</label>
+              <input type="number" id="fontSize" min="6" max="120" step="1" value="14" style="width:82px">
             </div>
             <input type="color" id="textColor" value="#585f74" title="글자 색">
           </div>
           <div class="field"><button class="btn solid" id="addText">글자 추가</button></div>
-          <p class="note">선택된 글자가 있으면 위 설정을 바꿀 때 바로 적용돼요. 화면에서 더블클릭하면 바로 타이핑할 수 있어요.</p>
+          <div class="text-items-title">추가된 글자</div>
+          <div class="text-items" id="textItems"></div>
+          <p class="note">위 입력란은 새 글자 추가 전용이에요. 추가된 글자는 아래의 편집 버튼에서 내용·폰트·크기를 각각 수정할 수 있어요. 오른쪽 화면에서는 더블클릭으로 직접 수정하고, 흰색 네모 손잡이로 글자 자체 크기를 조절할 수 있어요.</p>
         </div></div>
       </section>
 
@@ -697,20 +726,41 @@ function makeObj(cls,x,y,w,h){
   el.className="obj "+cls;
   el.style.left=x+"px"; el.style.top=y+"px"; el.style.width=w+"px"; el.style.height=h+"px";
   el.dataset.scale="1"; el.dataset.rotate="0";
-  el.innerHTML='<div class="rotate-handle"></div><button class="delete" aria-label="삭제">×</button>';
-  canvas.appendChild(el); wire(el); select(el);
+  el.innerHTML='<div class="rotate-handle"></div><button class="delete" aria-label="삭제">×</button><div class="object-resize-handle" title="크기 조절"></div>';
+  canvas.appendChild(el); select(el);
+  queueMicrotask(()=>wire(el));
   return el;
 }
-function removeObj(el){pushHistory(); el.remove(); selected=null}
-function select(el){$$(".obj.selected").forEach(x=>x.classList.remove("selected")); selected=el; if(el)el.classList.add("selected"); if(el&&el.classList.contains("text-object"))syncTextControls(el)}
+function removeObj(el){pushHistory(); el.remove(); selected=null; renderTextItems()}
+function select(el){$$(".obj.selected").forEach(x=>x.classList.remove("selected")); selected=el; if(el)el.classList.add("selected"); renderTextItems()}
 canvas.addEventListener("pointerdown",e=>{if(e.target===canvas)select(null)});
 
 function wire(el){
   if(el.dataset.wired)return; el.dataset.wired="1";
-  el.querySelector(".delete").addEventListener("click",e=>{e.stopPropagation(); removeObj(el)});
+  el.querySelector(".delete").addEventListener("click",e=>{e.stopPropagation(); removeObj(el); renderTextItems()});
+  if(!el.classList.contains("text-object") && !el.querySelector(".object-resize-handle")){
+    const h=document.createElement("div"); h.className="object-resize-handle"; h.title="크기 조절"; el.appendChild(h);
+  }
+
+  if(el.classList.contains("text-object")){
+    const content=el.querySelector(".text-content");
+    if(content){
+      content.contentEditable="false";
+      el.addEventListener("dblclick",e=>{
+        if(e.target.closest(".text-resize-handle,.rotate-handle,.delete"))return;
+        e.preventDefault(); e.stopPropagation(); select(el);
+        el.classList.add("editing"); content.contentEditable="true"; content.focus();
+        const range=document.createRange(); range.selectNodeContents(content); range.collapse(false);
+        const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      });
+      content.addEventListener("input",()=>{syncTextControls(el); renderTextItems(el)});
+      content.addEventListener("blur",()=>{content.contentEditable="false";el.classList.remove("editing");pushHistory();renderTextItems()});
+    }
+  }
 
   el.addEventListener("pointerdown",e=>{
-    if(e.target.matches("input,.delete,.cap") || e.target.closest(".rotate-handle") || e.target.closest(".photo-window") || el.isContentEditable && e.detail>1) return;
+    if(e.target.matches("input,.delete,.cap") || e.target.closest(".rotate-handle") || e.target.closest(".text-resize-handle") || e.target.closest(".object-resize-handle") || e.target.closest(".photo-window")) return;
+    if(el.classList.contains("text-object") && el.classList.contains("editing")) return;
     select(el); el.setPointerCapture(e.pointerId);
     const sx=e.clientX, sy=e.clientY, l=parseFloat(el.style.left)||0, t=parseFloat(el.style.top)||0;
     let moved=false;
@@ -725,6 +775,46 @@ function wire(el){
     const s=Math.max(.25,Math.min(4,(+el.dataset.scale||1)+(e.deltaY<0?.08:-.08)));
     el.dataset.scale=s; el.style.scale=s;
   },{passive:false});
+
+  const objectResizeHandle=el.querySelector(".object-resize-handle");
+  if(objectResizeHandle && !el.classList.contains("text-object")){
+    objectResizeHandle.addEventListener("pointerdown",e=>{
+      e.preventDefault(); e.stopPropagation(); select(el);
+      objectResizeHandle.setPointerCapture(e.pointerId);
+      const sx=e.clientX, sy=e.clientY, startScale=+el.dataset.scale||1;
+      const rect=el.getBoundingClientRect();
+      const baseSize=Math.max(40,Math.hypot(rect.width,rect.height)/Math.max(startScale,.01));
+      let moved=false;
+      const move=ev=>{
+        moved=true;
+        const delta=((ev.clientX-sx)+(ev.clientY-sy))/Math.max(baseSize,1);
+        const next=Math.max(.25,Math.min(4,startScale+delta));
+        el.dataset.scale=next; el.style.scale=next;
+      };
+      const up=()=>{
+        objectResizeHandle.removeEventListener("pointermove",move);
+        objectResizeHandle.removeEventListener("pointerup",up);
+        objectResizeHandle.removeEventListener("pointercancel",up);
+        if(moved)pushHistory();
+      };
+      objectResizeHandle.addEventListener("pointermove",move);
+      objectResizeHandle.addEventListener("pointerup",up);
+      objectResizeHandle.addEventListener("pointercancel",up);
+    });
+  }
+
+  const resizeHandle=el.querySelector(".text-resize-handle");
+  if(resizeHandle){
+    resizeHandle.addEventListener("pointerdown",e=>{
+      e.preventDefault(); e.stopPropagation(); select(el);
+      resizeHandle.setPointerCapture(e.pointerId);
+      const sx=e.clientX, sy=e.clientY, cs=parseFloat(getComputedStyle(el).fontSize), startPt=(el.style.fontSize.includes("pt")?parseFloat(el.style.fontSize):cs*0.75);
+      let moved=false;
+      const move=ev=>{moved=true; const delta=((ev.clientX-sx)+(ev.clientY-sy))*.055/(+el.dataset.scale||1); const pt=Math.max(6,Math.min(120,startPt+delta)); el.style.fontSize=pt.toFixed(1)+"pt"; };
+      const up=()=>{resizeHandle.removeEventListener("pointermove",move);resizeHandle.removeEventListener("pointerup",up);if(moved)pushHistory()};
+      resizeHandle.addEventListener("pointermove",move);resizeHandle.addEventListener("pointerup",up);
+    });
+  }
 
   const handle=el.querySelector(".rotate-handle");
   if(handle){
@@ -743,14 +833,23 @@ function wire(el){
     });
   }
 }
-function wireAll(){$$(".obj").forEach(wire)}
+function upgradeTextObject(el){
+  if(!el.classList.contains("text-object") || el.querySelector(".text-content"))return;
+  const controls=[...el.children].filter(x=>x.classList.contains("rotate-handle")||x.classList.contains("delete"));
+  const text=[...el.childNodes].filter(n=>!controls.includes(n)).map(n=>n.textContent||"").join("").trim();
+  [...el.childNodes].filter(n=>!controls.includes(n)).forEach(n=>n.remove());
+  el.contentEditable="false"; el.style.height="auto"; el.style.width="max-content";
+  const content=document.createElement("div");content.className="text-content";content.contentEditable="false";content.spellcheck=false;content.innerText=text;
+  const resize=document.createElement("div");resize.className="text-resize-handle";resize.title="글자 크기 조절";el.append(content,resize);
+}
+function wireAll(){$$(".obj").forEach(el=>{upgradeTextObject(el);wire(el)});renderTextItems()}
 function jingle(el){el.classList.remove("jingle"); void el.offsetWidth; el.classList.add("jingle")}
 
 /* ---------- stickers ---------- */
 function addSticker(key,file){
   const el=makeObj("obj sticker-object",stage.clientWidth*.42+stickerSeq*6,stage.clientHeight*.32+stickerSeq*6,86,86);
   stickerSeq=(stickerSeq+1)%6;
-  if(file){el.insertAdjacentHTML("beforeend",`<img src="${URL.createObjectURL(file)}">`)}
+  if(file){el.classList.add("uploaded-sticker"); el.insertAdjacentHTML("beforeend",`<img src="${URL.createObjectURL(file)}">`)}
   else{el.insertAdjacentHTML("beforeend",STICKERS[key])}
 }
 $$("#stickerGrid .asset[data-sticker]").forEach(b=>b.onclick=()=>addSticker(b.dataset.sticker));
@@ -804,28 +903,62 @@ $("#replacePhotoFile").onchange=e=>{
 };
 
 /* ---------- text ---------- */
+let textIdSeq=0;
+function ensureTextId(el){if(!el.dataset.textId)el.dataset.textId="txt_"+(++textIdSeq);return el.dataset.textId}
+function getTextContent(el){return el?.querySelector(".text-content")}
 function syncTextControls(el){
+  const content=getTextContent(el);
+  if(content)$("#textValue").value=content.innerText;
   $("#font").value=el.style.fontFamily.split(",")[0].trim()===""?FONTS[0][0]:el.dataset.fontVal||FONTS[0][0];
   $("#textColor").value=rgbToHex(el.style.color)||"#585f74";
-  $("#fontSize").value=parseInt(el.style.fontSize)||19;
+  const fs=parseFloat(el.style.fontSize)||18.6667; $("#fontSize").value=Math.round(el.style.fontSize.includes("pt")?fs:fs*0.75);
 }
 function rgbToHex(rgb){
   if(!rgb)return null; if(rgb[0]==="#")return rgb;
   const m=rgb.match(/\d+/g); if(!m)return null;
   return "#"+m.slice(0,3).map(n=>(+n).toString(16).padStart(2,"0")).join("");
 }
+let openTextEditorId=null;
+function renderTextItems(skipEl=null){
+  const host=$("#textItems"); if(!host)return;
+  host.innerHTML="";
+  $$(".text-object").forEach((el,i)=>{
+    const id=ensureTextId(el), content=getTextContent(el); if(!content)return;
+    const row=document.createElement("div");
+    row.className="text-item"+(selected===el?" active":"")+(openTextEditorId===id?" edit-open":"");
+    const head=document.createElement("div"); head.className="text-item-head";
+    const preview=document.createElement("div"); preview.className="text-preview"; preview.textContent=content.innerText.replace(/\n/g," ↵ ")||"(빈 글자)";
+    const go=document.createElement("button"); go.type="button"; go.className="text-edit-btn"; go.textContent=openTextEditorId===id?"닫기":"편집";
+    const editor=document.createElement("div"); editor.className="text-inline-editor";
+    const ta=document.createElement("textarea"); ta.value=content.innerText; ta.placeholder="글자 내용을 입력하세요";
+    const grid=document.createElement("div"); grid.className="text-inline-grid";
+    const fontBox=document.createElement("div"), sizeBox=document.createElement("div"); sizeBox.className="text-size-wrap";
+    const fl=document.createElement("label"); fl.textContent="폰트";
+    const sl=document.createElement("label"); sl.textContent="크기";
+    const fs=document.createElement("select"); fs.innerHTML=FONTS.map(f=>`<option value="${f[0]}">${f[1]}</option>`).join(""); fs.value=el.dataset.fontVal||FONTS[0][0];
+    const sz=document.createElement("input"); sz.type="number"; sz.min="6"; sz.max="120"; sz.step="1"; const raw=parseFloat(el.style.fontSize)||14; sz.value=Math.round(el.style.fontSize.includes("pt")?raw:raw*.75);
+    go.addEventListener("click",e=>{e.stopPropagation(); select(el); openTextEditorId=(openTextEditorId===id?null:id); renderTextItems(); if(openTextEditorId===id){const n=$(`[data-text-edit-id="${id}"]`); if(n){n.focus(); n.setSelectionRange(n.value.length,n.value.length)}}});
+    ta.dataset.textEditId=id;
+    ta.addEventListener("input",()=>{content.innerText=ta.value; preview.textContent=ta.value.replace(/\n/g," ↵ ")||"(빈 글자)"});
+    ta.addEventListener("change",()=>pushHistory());
+    fs.addEventListener("change",()=>{pushHistory();el.dataset.fontVal=fs.value;el.style.fontFamily=fs.value});
+    sz.addEventListener("input",()=>{el.style.fontSize=Math.max(6,Math.min(120,+sz.value||6))+"pt"});
+    sz.addEventListener("change",()=>pushHistory());
+    head.append(preview,go); fontBox.append(fl,fs); sizeBox.append(sl,sz); grid.append(fontBox,sizeBox); editor.append(ta,grid); row.append(head,editor); host.append(row);
+  });
+}
 $("#addText").onclick=()=>{
   const v=$("#textValue").value.trim()||"다이어리 메모";
-  const el=makeObj("obj text-object",stage.clientWidth*.4,stage.clientHeight*.45,180,40);
-  el.contentEditable="true"; el.dataset.fontVal=$("#font").value;
-  el.style.fontFamily=$("#font").value; el.style.color=$("#textColor").value; el.style.fontSize=$("#fontSize").value+"px";
-  el.insertAdjacentText("beforeend",v);
+  const el=makeObj("obj text-object",stage.clientWidth*.32,stage.clientHeight*.45,10,40); el.style.width="max-content";
+  ensureTextId(el);
+  el.dataset.fontVal=$("#font").value;
+  el.style.fontFamily=$("#font").value; el.style.color=$("#textColor").value; el.style.fontSize=$("#fontSize").value+"pt";
+  const content=document.createElement("div"); content.className="text-content"; content.contentEditable="false"; content.spellcheck=false; content.innerText=v;
+  const resize=document.createElement("div"); resize.className="text-resize-handle"; resize.title="글자 크기 조절";
+  el.append(content,resize);
+  queueMicrotask(()=>{wire(el);select(el);renderTextItems()});
 };
-$("#font").onchange=e=>{if(selected&&selected.classList.contains("text-object")){pushHistory();selected.dataset.fontVal=e.target.value;selected.style.fontFamily=e.target.value}};
-$("#textColor").oninput=e=>{if(selected&&selected.classList.contains("text-object")){selected.style.color=e.target.value}};
-$("#textColor").onchange=()=>pushHistory();
-$("#fontSize").oninput=e=>{if(selected&&selected.classList.contains("text-object")){selected.style.fontSize=e.target.value+"px"}};
-$("#fontSize").onchange=()=>pushHistory();
+// 위쪽 입력 영역은 새 글자 추가 전용이다. 기존 글자를 선택해도 수정하지 않는다.
 
 /* ---------- keyring ---------- */
 $("#addKeyringBtn").onclick=()=>$("#keyringFile").click();
