@@ -110,6 +110,14 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .tbtn.primary{background:rgba(255,255,255,.9);color:var(--theme-deep);font-weight:600}
 .tbtn.primary:hover{background:#fff}
 
+.export-status{
+  min-width:72px;margin-left:8px;font-size:12.5px;font-weight:600;color:#fff;
+  white-space:nowrap;opacity:0;transform:translateY(2px);transition:opacity .2s,transform .2s;pointer-events:none;
+}
+.export-status.show{opacity:1;transform:translateY(0)}
+.export-status.done{color:#fff}
+.export-wrap.busy .export-menu button{pointer-events:none;opacity:.45}
+
 .export-wrap{position:relative}
 .export-menu{
   position:absolute;right:0;top:calc(100% + 10px);z-index:80;min-width:200px;
@@ -377,6 +385,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
           </button>
         </div>
       </div>
+      <span class="export-status" id="exportStatus" aria-live="polite"></span>
     </nav>
   </header>
 
@@ -930,9 +939,36 @@ $("#loadFile").onchange=e=>{
 };
 
 /* ---------- export ---------- */
-$("#exportBtn").onclick=()=>$("#exportMenu").classList.toggle("show");
+let exportBusy=false, exportStatusTimer=null;
+const exportStatus=$("#exportStatus"), exportWrap=$(".export-wrap");
+function setExportBusy(busy,label="") {
+  exportBusy=busy;
+  exportWrap.classList.toggle("busy",busy);
+  $("#exportBtn").disabled=busy;
+  [$("#exportPNG"),$("#exportGIFFile"),$("#exportVideo")].forEach(btn=>{if(btn)btn.disabled=busy});
+  clearTimeout(exportStatusTimer);
+  if(label){
+    exportStatus.textContent=label;
+    exportStatus.classList.add("show");
+    exportStatus.classList.toggle("done",!busy);
+  }else{
+    exportStatus.classList.remove("show","done");
+    exportStatus.textContent="";
+  }
+}
+function exportStarted(){
+  if(exportBusy)return false;
+  setExportBusy(true,"저장 중...");
+  $("#exportMenu").classList.remove("show");
+  return true;
+}
+function exportFinished(ok=true){
+  setExportBusy(false,ok?"저장 완료!":"저장 실패");
+  exportStatusTimer=setTimeout(()=>setExportBusy(false,""),2200);
+}
+$("#exportBtn").onclick=()=>{if(!exportBusy)$("#exportMenu").classList.toggle("show")};
 document.addEventListener("click",e=>{ if(!e.target.closest(".export-wrap")) $("#exportMenu").classList.remove("show"); });
-$("#exportGIF").onclick=()=>{ popCharms(); flash("등장 애니메이션을 재생했어요"); $("#exportMenu").classList.remove("show"); };
+$("#exportGIF").onclick=()=>{ if(exportBusy)return; popCharms(); flash("등장 애니메이션을 재생했어요"); $("#exportMenu").classList.remove("show"); };
 
 const EXPORT_DURATION=3000;
 const EXPORT_FPS=15;
@@ -978,15 +1014,15 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
 }
 
 $("#exportPNG").onclick=async()=>{
-  $("#exportMenu").classList.remove("show");
+  if(!exportStarted())return;
   $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
-  flash("이미지를 만드는 중...");
   try{
     /* stage 전체를 그대로 저장하므로 고정 폴라로이드도 포함된다. */
     const c=await captureStage(exportScale());
     const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("PNG 생성 실패")),"image/png"));
-    downloadBlob(blob,"my-diary.png");flash("이미지로 저장했어요 ✓");
-  }catch(err){console.error(err);flash("PNG 실패: "+(err?.message||err));}
+    downloadBlob(blob,"my-diary.png");
+    exportFinished(true);
+  }catch(err){console.error(err);flash("PNG 실패: "+(err?.message||err));exportFinished(false);}
 };
 
 function resetRealAnimation(){
@@ -1072,7 +1108,7 @@ async function loadGifEncoder(){
 }
 
 $("#exportGIFFile").onclick=async()=>{
-  $("#exportMenu").classList.remove("show");flash("실제 등장 애니메이션을 GIF로 저장 중...");
+  if(!exportStarted())return;
   try{
     const {GIFEncoder,quantize,applyPalette}=await loadGifEncoder();
     let w=0,h=0,prevElapsed=0;
@@ -1092,14 +1128,16 @@ $("#exportGIFFile").onclick=async()=>{
       prevElapsed=elapsed;
       gif.writeFrame(idx,w,h,{palette:pal,delay:frameDelay,repeat:0});
     });
-    gif.finish();downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");flash("GIF로 저장했어요 ✓");
-  }catch(err){console.error(err);flash("GIF 실패: "+(err?.message||err));}
+    gif.finish();downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");
+    exportFinished(true);
+  }catch(err){console.error(err);flash("GIF 실패: "+(err?.message||err));exportFinished(false);}
 };
 
 $("#exportVideo").onclick=async()=>{
+  if(exportBusy)return;
   $("#exportMenu").classList.remove("show");
   if(typeof MediaRecorder==="undefined"||!HTMLCanvasElement.prototype.captureStream){flash("이 브라우저는 동영상 저장을 지원하지 않아요");return;}
-  flash("실제 등장 애니메이션을 동영상으로 저장 중...");
+  if(!exportStarted())return;
   let stream;
   try{
     const rect=stage.getBoundingClientRect(),sc=exportScale(),w=Math.round(rect.width*sc),h=Math.round(rect.height*sc);
@@ -1118,8 +1156,9 @@ $("#exportVideo").onclick=async()=>{
       await sleep(5);
     });
     await sleep(120);rec.stop();await stopped;
-    downloadBlob(new Blob(chunks,{type:rec.mimeType||"video/webm"}),"my-diary.webm");flash("동영상으로 저장했어요 ✓");
-  }catch(err){console.error(err);flash("동영상 실패: "+(err?.message||err));}
+    downloadBlob(new Blob(chunks,{type:rec.mimeType||"video/webm"}),"my-diary.webm");
+    exportFinished(true);
+  }catch(err){console.error(err);flash("동영상 실패: "+(err?.message||err));exportFinished(false);}
   finally{if(stream)stream.getTracks().forEach(t=>t.stop());}
 };
 
