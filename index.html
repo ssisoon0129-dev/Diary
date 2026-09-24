@@ -289,7 +289,19 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 .obj.selected .object-resize-handle{display:block}
 .text-object .object-resize-handle{display:none!important}
 /* uploaded sticker images get a clean white sticker-cut outline */
-.sticker-object.uploaded-sticker img{filter:drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 3px rgba(50,45,25,.22));}
+.sticker-object.uploaded-sticker img{
+  /* uploaded stickers: thin theme-colored keyline + thicker white sticker border */
+  filter:
+    drop-shadow(1px 0 0 var(--theme-deep))
+    drop-shadow(-1px 0 0 var(--theme-deep))
+    drop-shadow(0 1px 0 var(--theme-deep))
+    drop-shadow(0 -1px 0 var(--theme-deep))
+    drop-shadow(3px 0 0 #fff)
+    drop-shadow(-3px 0 0 #fff)
+    drop-shadow(0 3px 0 #fff)
+    drop-shadow(0 -3px 0 #fff)
+    drop-shadow(0 3px 3px rgba(50,45,25,.22));
+}
 
 
 .polaroid{background:#fff;padding:13px 13px 44px;box-shadow:0 8px 20px rgba(50,50,40,.22);width:248px}
