@@ -3000,7 +3000,7 @@ function stableDitherRGBA(rgba,w,h){
     [3,11,1,9],
     [15,7,13,5]
   ];
-  const strength=3.0;
+  const strength=0.8;
   for(let y=0;y<h;y++){
     for(let x=0;x<w;x++){
       const p=(y*w+x)*4;
@@ -3012,6 +3012,39 @@ function stableDitherRGBA(rgba,w,h){
     }
   }
   return out;
+}
+
+
+/* ---------- v100: temporal stabilization for static GIF pixels ---------- */
+function stabilizeStaticGifPixels(frames,w,h,threshold=10){
+  if(frames.length<2)return frames;
+  const first=frames[0];
+  const len=first.length;
+
+  for(let p=0;p<len;p+=4){
+    let minR=255,minG=255,minB=255,maxR=0,maxG=0,maxB=0;
+    for(let f=0;f<frames.length;f++){
+      const a=frames[f];
+      const r=a[p],g=a[p+1],b=a[p+2];
+      if(r<minR)minR=r;if(r>maxR)maxR=r;
+      if(g<minG)minG=g;if(g>maxG)maxG=g;
+      if(b<minB)minB=b;if(b>maxB)maxB=b;
+    }
+
+    /* Small differences are capture/AA noise, not real animation. */
+    if((maxR-minR)<=threshold &&
+       (maxG-minG)<=threshold &&
+       (maxB-minB)<=threshold){
+      const r=first[p],g=first[p+1],b=first[p+2];
+      for(let f=1;f<frames.length;f++){
+        frames[f][p]=r;
+        frames[f][p+1]=g;
+        frames[f][p+2]=b;
+        frames[f][p+3]=255;
+      }
+    }
+  }
+  return frames;
 }
 
 $("#exportGIFFile").onclick=async()=>{
@@ -3032,6 +3065,11 @@ $("#exportGIFFile").onclick=async()=>{
       const rgba=sctx.getImageData(0,0,w,h).data;
       frames.push(stableDitherRGBA(rgba,w,h));
     });
+
+    /* Remove tiny html2canvas/raster AA variations from areas that are not
+       actually moving. This is what stops the remaining "번쩍번쩍" around
+       stationary paper, borders, shadows and text. */
+    stabilizeStaticGifPixels(frames,w,h,10);
 
     /* Build ONE palette from evenly sampled pixels across the whole animation.
        Every frame now maps to exactly the same 256 colors. */
