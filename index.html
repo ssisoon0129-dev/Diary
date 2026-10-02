@@ -1533,6 +1533,14 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
   transform:translateZ(0);
 }
 
+
+/* v96 — export raster fidelity. Final dimensions stay unchanged. */
+#stage img,
+#stage canvas,
+#stage svg{
+  image-rendering:auto !important;
+}
+
 </style>
 </head>
 <body>
@@ -1596,10 +1604,6 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
           <button id="exportGIFFile">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8v8M12 8v8M16 8v5.5a1.5 1.5 0 0 1-3 0"/></svg>
             GIF 파일로 저장 (움직이는 애니메이션)
-          </button>
-          <button id="exportVideo">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="m22 8-5 4 5 4Z"/></svg>
-            동영상으로 저장 (약 3초)
           </button>
         </div>
       </div>
@@ -2043,9 +2047,28 @@ C71 15 58 32 50 49 Z"/>
 
 <script>
 const EXPORT_TARGET_WIDTH=700;
-function exportScale(){
-  const w=stage.getBoundingClientRect().width;
-  return w>0 ? EXPORT_TARGET_WIDTH/w : 1;
+const EXPORT_SUPERSAMPLE=3;
+
+function exportFinalSize(){
+  const r=stage.getBoundingClientRect();
+  const w=EXPORT_TARGET_WIDTH;
+  const h=Math.max(1,Math.round(w*(r.height/r.width)));
+  return {w,h};
+}
+function exportRenderScale(){
+  const r=stage.getBoundingClientRect();
+  return r.width>0 ? (EXPORT_TARGET_WIDTH*EXPORT_SUPERSAMPLE)/r.width : EXPORT_SUPERSAMPLE;
+}
+function downsampleExportCanvas(srcCanvas){
+  const {w,h}=exportFinalSize();
+  const out=document.createElement("canvas");
+  out.width=w; out.height=h;
+  const ctx=out.getContext("2d",{alpha:true});
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality="high";
+  ctx.clearRect(0,0,w,h);
+  ctx.drawImage(srcCanvas,0,0,srcCanvas.width,srcCanvas.height,0,0,w,h);
+  return out;
 }
 function captureDOM(element, options={}){
   const lib=window.html2canvas;
@@ -2725,7 +2748,7 @@ function setExportBusy(busy,label="") {
   exportBusy=busy;
   exportWrap.classList.toggle("busy",busy);
   $("#exportBtn").disabled=busy;
-  [$("#exportPNG"),$("#exportGIFFile"),$("#exportVideo")].forEach(btn=>{if(btn)btn.disabled=busy});
+  [$("#exportPNG"),$("#exportGIFFile")].forEach(btn=>{if(btn)btn.disabled=busy});
   clearTimeout(exportStatusTimer);
   if(label){
     exportStatus.textContent=label;
@@ -2802,7 +2825,7 @@ $("#exportPNG").onclick=async()=>{
   $$(".obj.selected").forEach(x=>x.classList.remove("selected"));
   try{
     /* stage 전체를 그대로 저장하므로 고정 폴라로이드도 포함된다. */
-    const c=await captureStage(exportScale());
+    const hi=await captureStage(exportRenderScale()); const c=downsampleExportCanvas(hi);
     const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("PNG 생성 실패")),"image/png"));
     downloadBlob(blob,"my-diary.png");
     exportFinished(true);
@@ -2885,7 +2908,7 @@ async function collectRealFrames(onFrame){
       if(wait>0)await sleep(wait);
       /* 실제 화면에서 현재 transition 값을 읽고 clone에 고정해 캡처 */
       const elapsed=performance.now()-start;
-      const shot=await captureStage(exportScale(),gifFrames,elapsed);
+      const hiShot=await captureStage(exportRenderScale(),gifFrames,elapsed); const shot=downsampleExportCanvas(hiShot);
       await onFrame(shot,i,elapsed);
     }
   }finally{
@@ -2919,42 +2942,14 @@ $("#exportGIFFile").onclick=async()=>{
       /* Use the ACTUAL measured gap between captures as this frame's delay, not a fixed
          1000/FPS value — capturing is slower than the target interval, so a fixed delay
          compresses the real animation time and makes the exported GIF play too fast. */
-      const frameDelay=Math.max(20,Math.min(90,Math.round(elapsed-prevElapsed)));
+      /* v96: fixed, slower playback. Capture latency no longer speeds the GIF up. */
+      const frameDelay=125;
       prevElapsed=elapsed;
       gif.writeFrame(idx,w,h,{palette:pal,delay:frameDelay,repeat:0});
     });
     gif.finish();downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");
     exportFinished(true);
   }catch(err){console.error(err);flash("GIF 실패: "+(err?.message||err));exportFinished(false);}
-};
-
-$("#exportVideo").onclick=async()=>{
-  if(exportBusy)return;
-  $("#exportMenu").classList.remove("show");
-  if(typeof MediaRecorder==="undefined"||!HTMLCanvasElement.prototype.captureStream){flash("이 브라우저는 동영상 저장을 지원하지 않아요");return;}
-  if(!exportStarted())return;
-  let stream;
-  try{
-    const rect=stage.getBoundingClientRect(),sc=exportScale(),w=Math.round(rect.width*sc),h=Math.round(rect.height*sc);
-    const c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d");
-    stream=c.captureStream(EXPORT_FPS);
-    const types=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"],type=types.find(x=>MediaRecorder.isTypeSupported(x))||"";
-    /* Give the recorder enough bitrate so soft shadows/gradients do not macroblock. */
-    const recOpts=type?{mimeType:type,videoBitsPerSecond:20000000}:{videoBitsPerSecond:20000000};
-    const rec=new MediaRecorder(stream,recOpts),chunks=[];
-    rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-    const stopped=new Promise((res,rej)=>{rec.onstop=res;rec.onerror=e=>rej(e.error||new Error("녹화 실패"));});
-    rec.start(100);
-    await collectRealFrames(async shot=>{
-      ctx.clearRect(0,0,w,h);ctx.drawImage(shot,0,0);
-      const tr=stream.getVideoTracks()[0];if(tr&&tr.requestFrame)tr.requestFrame();
-      await sleep(5);
-    });
-    await sleep(120);rec.stop();await stopped;
-    downloadBlob(new Blob(chunks,{type:rec.mimeType||"video/webm"}),"my-diary.webm");
-    exportFinished(true);
-  }catch(err){console.error(err);flash("동영상 실패: "+(err?.message||err));exportFinished(false);}
-  finally{if(stream)stream.getTracks().forEach(t=>t.stop());}
 };
 
 const pageLogoWord=$(".page-logo .word");
