@@ -2814,9 +2814,7 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
     backgroundColor:null,scale,useCORS:true,allowTaint:false,logging:false,imageTimeout:10000,
     windowWidth:document.documentElement.clientWidth,
     windowHeight:document.documentElement.clientHeight,
-    foreignObjectRendering:true, /* use the browser's own rendering for soft effects
-      (blurred box-shadow etc.) that html2canvas's manual redraw was losing, e.g. the
-      polaroid's shadow not showing up in exported PNG/GIF/video. */
+
     onclone:doc=>{
       const cloneStage=doc.getElementById("stage");
       if(!cloneStage)return;
