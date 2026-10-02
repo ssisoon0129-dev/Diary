@@ -3104,7 +3104,12 @@ $("#exportGIFFile").onclick=async()=>{
       gif.writeFrame(idx,w,h,{
         palette:globalPalette,
         delay:frameDelay,
-        repeat:0
+        repeat:0,
+        dispose:1 /* 'do not dispose' — draw each full frame straight over the last one.
+                     Every frame here is a complete re-capture of the whole stage, so there's
+                     nothing to restore/clear between frames. Leaving this unset used the
+                     encoder's default disposal, which was briefly clearing to the background
+                     color between frames — that's what looked like a brightness flash. */
       });
     }
     gif.finish();downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");
