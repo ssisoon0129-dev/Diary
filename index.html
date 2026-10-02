@@ -297,6 +297,12 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
     drop-shadow(0 -3px 0 #fff)
     drop-shadow(0 3px 3px rgba(50,45,25,.22));
 }
+/* Outline is now baked into the image's real pixels (see bakeStickerOutline) —
+   the live filter above would double it up, and more importantly wouldn't survive
+   export anyway, so turn it off once baking succeeds. */
+.sticker-object.uploaded-sticker.baked-outline img{
+  filter:none !important;
+}
 
 /* Built-in ribbon keeps its existing themed keyline. */
 .sticker-object.uploaded-sticker:has(.ribbon-sticker-img) img{
@@ -2377,13 +2383,43 @@ function wireAll(){
 function jingle(el){el.classList.remove("jingle"); void el.offsetWidth; el.classList.add("jingle")}
 
 /* ---------- stickers ---------- */
+const UPLOADED_STICKER_OUTLINE_FILTER=
+  "drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 3px 3px rgba(50,45,25,.22))";
+/* Bake the white die-cut outline into real pixels (same filter, applied once to a
+   canvas instead of live on every render) so it survives image capture/export,
+   which doesn't support the CSS `filter` property. Keeps the original transparency. */
+function bakeStickerOutline(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const pad=16; /* room for the shadow spread + blur so nothing gets clipped */
+        const cv=document.createElement("canvas");
+        cv.width=img.naturalWidth+pad*2;
+        cv.height=img.naturalHeight+pad*2;
+        const ctx=cv.getContext("2d");
+        ctx.filter=UPLOADED_STICKER_OUTLINE_FILTER;
+        ctx.drawImage(img,pad,pad,img.naturalWidth,img.naturalHeight);
+        resolve(cv.toDataURL("image/png"));
+      }catch(err){reject(err)}
+    };
+    img.onerror=reject;
+    img.src=URL.createObjectURL(file);
+  });
+}
 function addSticker(key,file){
   const el=makeObj("obj sticker-object",stage.clientWidth*.42+stickerSeq*6,stage.clientHeight*.32+stickerSeq*6,86,86);
   stickerSeq=(stickerSeq+1)%6;
   if(file){
     el.classList.add("uploaded-sticker");
     el.dataset.userUploaded="1";
-    el.insertAdjacentHTML("beforeend",`<img src="${URL.createObjectURL(file)}">`)
+    const img=document.createElement("img");
+    el.appendChild(img);
+    img.src=URL.createObjectURL(file); /* shows instantly with the live CSS outline while baking */
+    bakeStickerOutline(file).then(url=>{
+      img.src=url;
+      el.classList.add("baked-outline"); /* real pixels now include the outline — stop double-applying the live filter */
+    }).catch(()=>{ /* baking failed for some reason (e.g. CORS) — keep the live CSS filter as a fallback */ });
   }
   else{
     el.dataset.userUploaded="0";
@@ -2438,6 +2474,28 @@ document.addEventListener("pointerdown",e=>{
   if(st){ showStickerColorEditor(st); return; }
   if(!e.target.closest?.("#selectedStickerColorBox") && !e.target.closest?.("#stickerGrid")) showStickerColorEditor(null);
 },true);
+
+/* Bake a soft drop-shadow into an actual image instead of relying on a live CSS
+   box-shadow, which html2canvas only partially/unreliably reproduces. Canvas's
+   own blur (applied once, while drawing) becomes real pixels, so it survives
+   export the same way any other background image does. Cached per size. */
+const bakedShadowCache={};
+function getBakedShadowURL(w,h,blur=14,alpha=.3,radius=18){
+  const key=w+"x"+h;
+  if(bakedShadowCache[key]) return bakedShadowCache[key];
+  const pad=blur*2;
+  const cv=document.createElement("canvas");
+  cv.width=Math.round(w+pad*2); cv.height=Math.round(h+pad*2);
+  const ctx=cv.getContext("2d");
+  ctx.filter=`blur(${blur}px)`;
+  ctx.fillStyle=`rgba(40,35,25,${alpha})`;
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(pad,pad,w,h,radius); else ctx.rect(pad,pad,w,h);
+  ctx.fill();
+  const url=cv.toDataURL("image/png");
+  bakedShadowCache[key]=url;
+  return url;
+}
 
 /* ---------- polaroid ---------- */
 $("#addPolaroidBtn").onclick=()=>$("#photoFile").click();
@@ -2801,7 +2859,7 @@ function downloadBlob(blob,name){
 
 /* 저장 범위 = 사용자가 표시한 오른쪽 작업창(stage) 그 자체 */
 async function captureStage(scale=1, gifFrames=null, elapsed=0){
-  const sourceEls=[...stage.querySelectorAll(".charm, .page-logo, .pen-keyring, .keyring-object")];
+  const sourceEls=[...stage.querySelectorAll(".charm, .page-logo, .keyring-object")];
   const states=sourceEls.map(el=>({
     id:el.id||null,
     cls:el.className,
@@ -2818,7 +2876,7 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
       const cloneStage=doc.getElementById("stage");
       if(!cloneStage)return;
       cloneStage.querySelectorAll(".toast,.logo-drag,.delete,.rotate-handle").forEach(x=>x.style.display="none");
-      const cloneEls=[...cloneStage.querySelectorAll(".charm, .page-logo, .pen-keyring, .keyring-object")];
+      const cloneEls=[...cloneStage.querySelectorAll(".charm, .page-logo, .keyring-object")];
       cloneEls.forEach((el,i)=>{
         const st=states[i]; if(!st)return;
         el.style.transition="none";el.style.animation="none";
@@ -2832,6 +2890,24 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
           if(key&&gifFrames[key]) im.src=gifFrames[key](elapsed);
         });
       }
+      /* Polaroid shadow: box-shadow is unreliable in capture, so bake a real
+         shadow image sized/positioned to match the card exactly, and insert it
+         as a preceding sibling (so normal DOM-order stacking puts it behind the
+         card) — only inside this throwaway clone, never on the live page. */
+      cloneStage.querySelectorAll(".obj.polaroid").forEach(cloneEl=>{
+        const w=parseFloat(cloneEl.style.width)||cloneEl.offsetWidth;
+        const h=parseFloat(cloneEl.style.height)||cloneEl.offsetHeight;
+        const leftPx=parseFloat(cloneEl.style.left)||0;
+        const topPx=parseFloat(cloneEl.style.top)||0;
+        const rotateVal=cloneEl.style.rotate||"0deg";
+        const scaleVal=cloneEl.style.scale||"1";
+        const blur=14,pad=blur*2;
+        const shadow=doc.createElement("div");
+        shadow.style.cssText=`position:absolute;left:${leftPx-pad}px;top:${topPx-pad}px;`+
+          `width:${w+pad*2}px;height:${h+pad*2}px;rotate:${rotateVal};scale:${scaleVal};`+
+          `pointer-events:none;background:url(${getBakedShadowURL(w,h,blur)}) center/100% 100% no-repeat;`;
+        cloneEl.parentNode.insertBefore(shadow,cloneEl);
+      });
     }
   });
 }
