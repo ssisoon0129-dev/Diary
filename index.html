@@ -2126,7 +2126,30 @@ function popCharms(){
 /* ---------- history ---------- */
 function snapshot(){return {html:canvas.innerHTML, theme:getComputedStyle(document.documentElement).getPropertyValue("--theme").trim()}}
 function pushHistory(){if(restoring)return; history.push(snapshot()); if(history.length>60)history.shift(); future=[]; syncHistBtns()}
-function restore(s){if(!s)return; restoring=true; canvas.innerHTML=s.html; setTheme(s.theme,false); wireAll(); selected=null; restoring=false}
+function restore(s){
+  if(!s)return;
+  restoring=true;
+  canvas.innerHTML=s.html;
+  setTheme(s.theme,false);
+
+  /* v93: snapshots contain data-wired="1", but event listeners themselves
+     are not serialized into innerHTML. After undo/redo the restored nodes
+     therefore looked wired and wire()/photo wiring skipped them entirely.
+     Clear the stale flags before reattaching interactions. */
+  canvas.querySelectorAll("[data-wired]").forEach(el=>el.removeAttribute("data-wired"));
+
+  wireAll();
+
+  /* Re-wire restored polaroid/photo interactions too. */
+  canvas.querySelectorAll(".polaroid, .polaroid-object, .obj.polaroid").forEach(el=>{
+    if(typeof wirePolaroid==="function"){
+      try{ wirePolaroid(el); }catch(_){}
+    }
+  });
+
+  selected=null;
+  restoring=false;
+}
 function syncHistBtns(){$("#undo").disabled=!history.length; $("#redo").disabled=!future.length}
 function undo(){if(!history.length)return; future.push(snapshot()); restore(history.pop()); syncHistBtns()}
 function redo(){if(!future.length)return; history.push(snapshot()); restore(future.pop()); syncHistBtns()}
@@ -2263,7 +2286,10 @@ function upgradeTextObject(el){
   const content=document.createElement("div");content.className="text-content";content.contentEditable="false";content.spellcheck=false;content.innerText=text;
   const resize=document.createElement("div");resize.className="text-resize-handle";resize.title="글자 크기 조절";el.append(content,resize);
 }
-function wireAll(){$$(".obj").forEach(el=>{upgradeTextObject(el);wire(el)});renderTextItems()}
+function wireAll(){
+  $$(".obj").forEach(el=>{upgradeTextObject(el);wire(el)});
+  renderTextItems();
+}
 function jingle(el){el.classList.remove("jingle"); void el.offsetWidth; el.classList.add("jingle")}
 
 /* ---------- stickers ---------- */
