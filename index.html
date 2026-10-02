@@ -2965,6 +2965,55 @@ async function loadGifEncoder(){
   throw last||new Error("GIF 인코더 로드 실패");
 }
 
+
+/* ---------- v99: stable GIF frame compositing ---------- */
+function flattenGifFrame(canvas){
+  const flat=document.createElement("canvas");
+  flat.width=canvas.width;
+  flat.height=canvas.height;
+  const ctx=flat.getContext("2d",{alpha:false});
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality="high";
+
+  /* GIF transparency + soft shadows/AA fringes caused palette shimmer.
+     Composite every frame against the exact same opaque backdrop first. */
+  const stageBg=getComputedStyle(stage).backgroundColor;
+  const canvasBg=getComputedStyle(canvas).backgroundColor;
+  const bg=(stageBg && stageBg!=="rgba(0, 0, 0, 0)" && stageBg!=="transparent")
+    ? stageBg
+    : ((canvasBg && canvasBg!=="rgba(0, 0, 0, 0)" && canvasBg!=="transparent")
+      ? canvasBg : "#fffdf8");
+
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,flat.width,flat.height);
+  ctx.drawImage(canvas,0,0);
+  return flat;
+}
+
+/* Stable ordered dithering: same pixel coordinates always receive the same
+   threshold, so gradients don't randomly sparkle between GIF frames. */
+function stableDitherRGBA(rgba,w,h){
+  const out=new Uint8ClampedArray(rgba);
+  const bayer=[
+    [0,8,2,10],
+    [12,4,14,6],
+    [3,11,1,9],
+    [15,7,13,5]
+  ];
+  const strength=3.0;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const p=(y*w+x)*4;
+      const n=((bayer[y&3][x&3]/15)-.5)*strength;
+      out[p]=Math.max(0,Math.min(255,out[p]+n));
+      out[p+1]=Math.max(0,Math.min(255,out[p+1]+n));
+      out[p+2]=Math.max(0,Math.min(255,out[p+2]+n));
+      out[p+3]=255;
+    }
+  }
+  return out;
+}
+
 $("#exportGIFFile").onclick=async()=>{
   if(!exportStarted())return;
   try{
@@ -2978,8 +3027,10 @@ $("#exportGIFFile").onclick=async()=>{
        which looked like the surroundings were flashing. */
     await collectRealFrames(async (shot,i,elapsed)=>{
       if(!w){w=shot.width;h=shot.height;}
-      const sctx=shot.getContext("2d",{willReadFrequently:true});
-      frames.push(new Uint8ClampedArray(sctx.getImageData(0,0,w,h).data));
+      const flat=flattenGifFrame(shot);
+      const sctx=flat.getContext("2d",{willReadFrequently:true});
+      const rgba=sctx.getImageData(0,0,w,h).data;
+      frames.push(stableDitherRGBA(rgba,w,h));
     });
 
     /* Build ONE palette from evenly sampled pixels across the whole animation.
@@ -2997,12 +3048,12 @@ $("#exportGIFFile").onclick=async()=>{
         samples[o++]=255;
       }
     }
-    const globalPalette=quantize(samples.subarray(0,o),256,{format:"rgb444"});
+    const globalPalette=quantize(samples.subarray(0,o),256,{format:"rgb565"});
 
     const gif=GIFEncoder();
     const frameDelay=Math.round((1000/EXPORT_FPS)*1.05);
     for(const rgba of frames){
-      const idx=applyPalette(rgba,globalPalette,"rgb444");
+      const idx=applyPalette(rgba,globalPalette,"rgb565");
       gif.writeFrame(idx,w,h,{
         palette:globalPalette,
         delay:frameDelay,
