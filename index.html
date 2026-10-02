@@ -2814,6 +2814,9 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
     backgroundColor:null,scale,useCORS:true,allowTaint:false,logging:false,imageTimeout:10000,
     windowWidth:document.documentElement.clientWidth,
     windowHeight:document.documentElement.clientHeight,
+    foreignObjectRendering:true, /* use the browser's own rendering for soft effects
+      (blurred box-shadow etc.) that html2canvas's manual redraw was losing, e.g. the
+      polaroid's shadow not showing up in exported PNG/GIF/video. */
     onclone:doc=>{
       const cloneStage=doc.getElementById("stage");
       if(!cloneStage)return;
@@ -3015,6 +3018,24 @@ function stableDitherRGBA(rgba,w,h){
 }
 
 
+/* Snap pixels close to the diary page's paper color (#fffdf8) to that exact
+   value in every frame. The generic noise-threshold stabilizer couldn't be
+   raised further without flattening real color detail elsewhere (stickers,
+   photos), but the page background is KNOWN to be a flat, constant color, so
+   it's safe to lock it precisely by color instead of by cross-frame variance. */
+function snapNearPaperColor(frames,w,h,target=[255,253,248],tolerance=26){
+  const [tr,tg,tb]=target;
+  for(const rgba of frames){
+    for(let p=0;p<rgba.length;p+=4){
+      const r=rgba[p],g=rgba[p+1],b=rgba[p+2];
+      if(Math.abs(r-tr)<=tolerance && Math.abs(g-tg)<=tolerance && Math.abs(b-tb)<=tolerance){
+        rgba[p]=tr;rgba[p+1]=tg;rgba[p+2]=tb;rgba[p+3]=255;
+      }
+    }
+  }
+  return frames;
+}
+
 /* ---------- v100: temporal stabilization for static GIF pixels ---------- */
 function stabilizeStaticGifPixels(frames,w,h,threshold=10){
   if(frames.length<2)return frames;
@@ -3072,6 +3093,7 @@ $("#exportGIFFile").onclick=async()=>{
        safe threshold — raising it earlier flattened real gradient detail into
        posterized purple/pink blotches, which is worse than the flicker it fixed. */
     stabilizeStaticGifPixels(frames,w,h,10);
+    snapNearPaperColor(frames,w,h);
 
     /* Build the shared palette from a SEPARATE, more heavily-stabilized copy of the
        frames (not the ones actually written to the GIF). This copy is only used to
