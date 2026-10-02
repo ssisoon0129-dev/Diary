@@ -3404,7 +3404,7 @@ let diaryLayerSerial = 1000;
 function isDiaryLayerObject(el){
   if(!el || !el.classList) return false;
   return el.matches(
-    '.sticker-object, .polaroid-object, .obj.polaroid, .memo-object, .text-object, .keyring-object, .keyring, [data-draggable="true"]'
+    '.sticker-object, .polaroid-object, .obj.polaroid, .photostrip2, .memo-object, .text-object, .keyring-object, .keyring, [data-draggable="true"]'
   );
 }
 
@@ -3419,7 +3419,7 @@ function bringDiaryLayerToFront(el){
    A normal click/tap on any editable object makes that entire object the top layer. */
 document.addEventListener('pointerdown', function(e){
   const el = e.target.closest(
-    '.sticker-object, .polaroid-object, .obj.polaroid, .memo-object, .text-object, .keyring-object, .keyring, [data-draggable="true"]'
+    '.sticker-object, .polaroid-object, .obj.polaroid, .photostrip2, .memo-object, .text-object, .keyring-object, .keyring, [data-draggable="true"]'
   );
   if(!el) return;
   bringDiaryLayerToFront(el);
@@ -3428,7 +3428,7 @@ document.addEventListener('pointerdown', function(e){
 /* Also cover mouse-only/dblclick editing paths. */
 document.addEventListener('dblclick', function(e){
   const el = e.target.closest(
-    '.sticker-object, .polaroid-object, .obj.polaroid, .memo-object, .text-object, .keyring-object, .keyring, [data-draggable="true"]'
+    '.sticker-object, .polaroid-object, .obj.polaroid, .photostrip2, .memo-object, .text-object, .keyring-object, .keyring, [data-draggable="true"]'
   );
   if(el) bringDiaryLayerToFront(el);
 }, true);
