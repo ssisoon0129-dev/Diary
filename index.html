@@ -3068,17 +3068,26 @@ $("#exportGIFFile").onclick=async()=>{
 
     /* Remove tiny html2canvas/raster AA variations from areas that are not
        actually moving. This is what stops the remaining "번쩍번쩍" around
-       stationary paper, borders, shadows and text. */
+       stationary paper, borders, shadows and text. Keep this at the ORIGINAL
+       safe threshold — raising it earlier flattened real gradient detail into
+       posterized purple/pink blotches, which is worse than the flicker it fixed. */
     stabilizeStaticGifPixels(frames,w,h,10);
 
-    /* Build ONE palette from evenly sampled pixels across the whole animation.
-       Every frame now maps to exactly the same 256 colors. */
+    /* Build the shared palette from a SEPARATE, more heavily-stabilized copy of the
+       frames (not the ones actually written to the GIF). This copy is only used to
+       pick a noise-robust set of 256 colors; the real output below still encodes the
+       lightly-stabilized `frames` array, so on-screen color fidelity is unchanged —
+       only the palette-selection step gets steadier, which is what actually reduces
+       cross-frame palette drift ("번쩍거림") without washing out subtle color detail. */
+    const paletteFrames=frames.map(f=>new Uint8ClampedArray(f));
+    stabilizeStaticGifPixels(paletteFrames,w,h,24);
+
     const sampleStride=12;
     let samplePixels=0;
-    for(const rgba of frames) samplePixels+=Math.ceil((rgba.length/4)/sampleStride);
+    for(const rgba of paletteFrames) samplePixels+=Math.ceil((rgba.length/4)/sampleStride);
     const samples=new Uint8Array(samplePixels*4);
     let o=0;
-    for(const rgba of frames){
+    for(const rgba of paletteFrames){
       for(let p=0;p<rgba.length;p+=4*sampleStride){
         samples[o++]=rgba[p];
         samples[o++]=rgba[p+1];
