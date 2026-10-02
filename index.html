@@ -3069,11 +3069,11 @@ $("#exportGIFFile").onclick=async()=>{
     /* Remove tiny html2canvas/raster AA variations from areas that are not
        actually moving. This is what stops the remaining "번쩍번쩍" around
        stationary paper, borders, shadows and text. */
-    stabilizeStaticGifPixels(frames,w,h,18);
+    stabilizeStaticGifPixels(frames,w,h,10);
 
     /* Build ONE palette from evenly sampled pixels across the whole animation.
        Every frame now maps to exactly the same 256 colors. */
-    const sampleStride=6;
+    const sampleStride=12;
     let samplePixels=0;
     for(const rgba of frames) samplePixels+=Math.ceil((rgba.length/4)/sampleStride);
     const samples=new Uint8Array(samplePixels*4);
