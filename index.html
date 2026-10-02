@@ -2976,13 +2976,18 @@ function flattenGifFrame(canvas){
   ctx.imageSmoothingQuality="high";
 
   /* GIF transparency + soft shadows/AA fringes caused palette shimmer.
-     Composite every frame against the exact same opaque backdrop first. */
+     Composite every frame against the exact same opaque backdrop first.
+     The stage's own background is a gradient, which html2canvas may not
+     fully reproduce — read the known solid --paper-panel token directly
+     instead of trusting computed backgroundColor detection, which was
+     falling through to the white default and showing as blank patches. */
+  const paperPanel=getComputedStyle(document.documentElement).getPropertyValue("--paper-panel").trim();
   const stageBg=getComputedStyle(stage).backgroundColor;
   const canvasBg=getComputedStyle(canvas).backgroundColor;
-  const bg=(stageBg && stageBg!=="rgba(0, 0, 0, 0)" && stageBg!=="transparent")
-    ? stageBg
-    : ((canvasBg && canvasBg!=="rgba(0, 0, 0, 0)" && canvasBg!=="transparent")
-      ? canvasBg : "#fffdf8");
+  const isUsableColor=v=>v && v!=="rgba(0, 0, 0, 0)" && v!=="transparent";
+  const bg=isUsableColor(paperPanel) ? paperPanel
+    : isUsableColor(stageBg) ? stageBg
+    : (isUsableColor(canvasBg) ? canvasBg : "#fffdf8");
 
   ctx.fillStyle=bg;
   ctx.fillRect(0,0,flat.width,flat.height);
