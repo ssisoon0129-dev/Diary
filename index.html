@@ -1488,6 +1488,51 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
   height:50px !important;
 }
 
+
+/* v94 — export fidelity + custom sticker cutline cleanup */
+
+/* Polaroid photos: same crop/position math on screen and during capture. */
+.obj.polaroid .photo,
+.polaroid-object .photo,
+.obj.polaroid .photo img,
+.polaroid-object .photo img{
+  transform-origin:center center !important;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+}
+.obj.polaroid .photo,
+.polaroid-object .photo{
+  overflow:hidden !important;
+  isolation:isolate;
+}
+.obj.polaroid .photo img,
+.polaroid-object .photo img{
+  image-rendering:auto !important;
+  max-width:none !important;
+  max-height:none !important;
+}
+
+/* User-added raster stickers: cleaner alpha edge.
+   Avoid stacked wrapper shadows that create lumpy white borders. */
+.image-sticker-object,
+.sticker-object.user-sticker,
+.sticker-object.custom-sticker,
+.sticker-object.uploaded-sticker,
+.sticker-object[data-user-sticker="true"],
+.sticker-object[data-custom="true"]{
+  box-shadow:none !important;
+  filter:none !important;
+}
+.image-sticker-object img,
+.sticker-object.user-sticker img,
+.sticker-object.custom-sticker img,
+.sticker-object.uploaded-sticker img,
+.sticker-object[data-user-sticker="true"] img,
+.sticker-object[data-custom="true"] img{
+  image-rendering:auto !important;
+  transform:translateZ(0);
+}
+
 </style>
 </head>
 <body>
@@ -3424,6 +3469,42 @@ if(_v88DogtagBtn){
       }
     });
   });
+}
+
+
+/* ---------- v94: export fidelity helpers ---------- */
+function freezePolaroidPhotoLayoutForExport(){
+  const saved=[];
+  stage.querySelectorAll(".obj.polaroid .photo img, .polaroid-object .photo img").forEach(img=>{
+    const cs=getComputedStyle(img);
+    saved.push({
+      img,
+      style:img.getAttribute("style")
+    });
+    img.style.width=cs.width;
+    img.style.height=cs.height;
+    img.style.left=cs.left;
+    img.style.top=cs.top;
+    img.style.transform=cs.transform==="none" ? "" : cs.transform;
+    img.style.objectFit=cs.objectFit;
+    img.style.objectPosition=cs.objectPosition;
+  });
+  return ()=>saved.forEach(({img,style})=>{
+    if(style==null) img.removeAttribute("style");
+    else img.setAttribute("style",style);
+  });
+}
+
+/* A single export frame should wait for image decode + two paints.
+   This prevents half-res / stale transformed images from being captured. */
+async function settleExportFrame(){
+  const imgs=[...stage.querySelectorAll("img")];
+  await Promise.all(imgs.map(img=>{
+    if(img.complete && img.naturalWidth) return Promise.resolve();
+    if(typeof img.decode==="function") return img.decode().catch(()=>{});
+    return new Promise(r=>{img.addEventListener("load",r,{once:true});img.addEventListener("error",r,{once:true})});
+  }));
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 }
 
 </script>
