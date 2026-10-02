@@ -291,10 +291,14 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 .sticker-object.uploaded-sticker img{
   /* uploaded stickers: white die-cut border + soft shadow */
   filter:
-    drop-shadow(3px 0 0 #fff)
-    drop-shadow(-3px 0 0 #fff)
-    drop-shadow(0 3px 0 #fff)
-    drop-shadow(0 -3px 0 #fff)
+    drop-shadow(6px 0 0 #fff)
+    drop-shadow(-6px 0 0 #fff)
+    drop-shadow(0 6px 0 #fff)
+    drop-shadow(0 -6px 0 #fff)
+    drop-shadow(4.2px 4.2px 0 #fff)
+    drop-shadow(-4.2px 4.2px 0 #fff)
+    drop-shadow(4.2px -4.2px 0 #fff)
+    drop-shadow(-4.2px -4.2px 0 #fff)
     drop-shadow(0 3px 3px rgba(50,45,25,.22));
 }
 /* Outline is now baked into the image's real pixels (see bakeStickerOutline) —
@@ -2384,7 +2388,9 @@ function jingle(el){el.classList.remove("jingle"); void el.offsetWidth; el.class
 
 /* ---------- stickers ---------- */
 const UPLOADED_STICKER_OUTLINE_FILTER=
-  "drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 3px 3px rgba(50,45,25,.22))";
+  "drop-shadow(6px 0 0 #fff) drop-shadow(-6px 0 0 #fff) drop-shadow(0 6px 0 #fff) drop-shadow(0 -6px 0 #fff) "+
+  "drop-shadow(4.2px 4.2px 0 #fff) drop-shadow(-4.2px 4.2px 0 #fff) drop-shadow(4.2px -4.2px 0 #fff) drop-shadow(-4.2px -4.2px 0 #fff) "+
+  "drop-shadow(0 3px 3px rgba(50,45,25,.22))";
 /* Bake the white die-cut outline into real pixels (same filter, applied once to a
    canvas instead of live on every render) so it survives image capture/export,
    which doesn't support the CSS `filter` property. Keeps the original transparency. */
@@ -2393,7 +2399,7 @@ function bakeStickerOutline(file){
     const img=new Image();
     img.onload=()=>{
       try{
-        const pad=16; /* room for the shadow spread + blur so nothing gets clipped */
+        const pad=24; /* room for the thicker shadow spread + blur so nothing gets clipped */
         const cv=document.createElement("canvas");
         cv.width=img.naturalWidth+pad*2;
         cv.height=img.naturalHeight+pad*2;
