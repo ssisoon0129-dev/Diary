@@ -2650,6 +2650,17 @@ requestAnimationFrame(tick);
 function kickFlexibleChain(el,v){
   const st=flexibleChains.get(el); if(st)st.target=Math.max(-7,Math.min(7,st.target+v));
 }
+/* Before export, snap the physics-simulated chain balls back to their clean
+   resting position. Without this, the capture starts from whatever random
+   point the live idle sway happened to be at, so the "base" position looked
+   like it had shifted — the jingle-reveal triggered afterward still plays
+   normally, it just now starts from a consistent, settled baseline. */
+function resetFlexibleChains(){
+  $$(".keyring-object").forEach(el=>{
+    const st=flexibleChains.get(el);
+    if(st){ st.sway=0; st.target=0; st.pts=st.base.map(p=>({...p})); }
+  });
+}
 
 
 async function trimTransparentKeyringImage(file){
@@ -2865,7 +2876,7 @@ function downloadBlob(blob,name){
 
 /* 저장 범위 = 사용자가 표시한 오른쪽 작업창(stage) 그 자체 */
 async function captureStage(scale=1, gifFrames=null, elapsed=0){
-  const sourceEls=[...stage.querySelectorAll(".charm, .page-logo, .keyring-object")];
+  const sourceEls=[...stage.querySelectorAll(".charm, .page-logo")];
   const states=sourceEls.map(el=>({
     id:el.id||null,
     cls:el.className,
@@ -2882,7 +2893,7 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
       const cloneStage=doc.getElementById("stage");
       if(!cloneStage)return;
       cloneStage.querySelectorAll(".toast,.logo-drag,.delete,.rotate-handle").forEach(x=>x.style.display="none");
-      const cloneEls=[...cloneStage.querySelectorAll(".charm, .page-logo, .keyring-object")];
+      const cloneEls=[...cloneStage.querySelectorAll(".charm, .page-logo")];
       cloneEls.forEach((el,i)=>{
         const st=states[i]; if(!st)return;
         el.style.transition="none";el.style.animation="none";
@@ -2894,6 +2905,22 @@ async function captureStage(scale=1, gifFrames=null, elapsed=0){
         cloneStage.querySelectorAll("img").forEach((im,i)=>{
           const key=im.getAttribute("data-export-gif-key");
           if(key&&gifFrames[key]) im.src=gifFrames[key](elapsed);
+        });
+      }
+      /* Keyring objects consistently render ~20-30px too far left in the export
+         vs the live site (root cause not fully pinned down — the keyring's CSS
+         uses an unusual content-box + !important padding combo that nothing else
+         on the page uses, likely an html2canvas layout-reproduction quirk).
+         Compensate with a calculated rightward nudge instead, scaled so a fixed
+         ~25px correction in the FINAL exported image stays correct regardless of
+         the live window's current size. */
+      {
+        const liveStageWidth=stage.getBoundingClientRect().width;
+        const finalWidth=exportFinalSize().w;
+        const compensatePx=25*(liveStageWidth/finalWidth);
+        cloneStage.querySelectorAll(".keyring-object").forEach(k=>{
+          const curLeft=parseFloat(k.style.left)||0;
+          k.style.left=(curLeft+compensatePx)+"px";
         });
       }
       /* Polaroid shadow: box-shadow is unreliable in capture, so bake a real
@@ -2941,6 +2968,7 @@ function resetRealAnimation(){
     k.style.animation="none";
     k.style.transform="rotate(0deg)";
   });
+  resetFlexibleChains();
   void stage.offsetWidth;
 }
 function playRealAnimation(){
