@@ -3095,13 +3095,13 @@ $("#exportGIFFile").onclick=async()=>{
        safe threshold — raising it earlier flattened real gradient detail into
        posterized purple/pink blotches, which is worse than the flicker it fixed. */
     stabilizeStaticGifPixels(frames,w,h,10);
-    snapNearPaperColor(frames,w,h);
+    snapNearPaperColor(frames,w,h,[255,253,248],9);
     /* Same fix for the theme-colored cover/mat — it's the other large flat-color
        area in the diary, and the AA noise that made the white pages flicker was
        doing the same thing there, just less noticed until the pages were fixed. */
     const themeHex=getComputedStyle(document.documentElement).getPropertyValue("--theme").trim();
     const themeRgb=hexRgb(themeHex);
-    snapNearPaperColor(frames,w,h,themeRgb,22);
+    snapNearPaperColor(frames,w,h,themeRgb,9);
 
     /* Build the shared palette from a SEPARATE, more heavily-stabilized copy of the
        frames (not the ones actually written to the GIF). This copy is only used to
