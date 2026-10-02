@@ -2975,8 +2975,13 @@ function playRealAnimation(){
   $$(".charm").forEach(el=>el.classList.remove("no-anim"));
   if(pageLogo)pageLogo.style.transition="";
   const pks=$$(".pen-keyring"); pks.forEach(pk=>{pk.style.animation="";})
+  /* Do NOT restore animation="" here — that would re-enable the continuous idle
+     sway at the same time the one-shot jingle plays below, and the two fighting
+     over the same transform looked like it was jingling on repeat. Keep sway
+     suppressed for the whole replay; the finally block in collectRealFrames
+     restores it once everything is done. */
   const addedKeys=$$(".keyring-object");
-  addedKeys.forEach(k=>{k.style.animation="";k.style.transform="";k.classList.remove("jingle");});
+  addedKeys.forEach(k=>{k.style.transform="";k.classList.remove("jingle");});
   void stage.offsetWidth;
   requestAnimationFrame(()=>{
     requestAnimationFrame(()=>{
