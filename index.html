@@ -2969,24 +2969,46 @@ $("#exportGIFFile").onclick=async()=>{
   if(!exportStarted())return;
   try{
     const {GIFEncoder,quantize,applyPalette}=await loadGifEncoder();
-    let w=0,h=0,prevElapsed=0;
-    const gif=GIFEncoder();
+    let w=0,h=0;
+    const frames=[];
+
+    /* First capture all of the already-correct v97 timeline frames.
+       Do not encode them yet: encoding each frame with its own palette made
+       almost-identical background/anti-aliased colors jump between frames,
+       which looked like the surroundings were flashing. */
     await collectRealFrames(async (shot,i,elapsed)=>{
-      /* IMPORTANT: do not resize animation frames. The previous drawImage
-         resampling step created horizontal seams on transformed/shadowed layers. */
       if(!w){w=shot.width;h=shot.height;}
       const sctx=shot.getContext("2d",{willReadFrequently:true});
-      const rgba=sctx.getImageData(0,0,w,h).data;
-      const pal=quantize(rgba,256,{format:"rgb444"});
-      const idx=applyPalette(rgba,pal,"rgb444");
-      /* Use the ACTUAL measured gap between captures as this frame's delay, not a fixed
-         1000/FPS value — capturing is slower than the target interval, so a fixed delay
-         compresses the real animation time and makes the exported GIF play too fast. */
-      /* v96: fixed, slower playback. Capture latency no longer speeds the GIF up. */
-      const frameDelay=Math.round((1000/EXPORT_FPS)*1.05);
-      prevElapsed=elapsed;
-      gif.writeFrame(idx,w,h,{palette:pal,delay:frameDelay,repeat:0});
+      frames.push(new Uint8ClampedArray(sctx.getImageData(0,0,w,h).data));
     });
+
+    /* Build ONE palette from evenly sampled pixels across the whole animation.
+       Every frame now maps to exactly the same 256 colors. */
+    const sampleStride=12;
+    let samplePixels=0;
+    for(const rgba of frames) samplePixels+=Math.ceil((rgba.length/4)/sampleStride);
+    const samples=new Uint8Array(samplePixels*4);
+    let o=0;
+    for(const rgba of frames){
+      for(let p=0;p<rgba.length;p+=4*sampleStride){
+        samples[o++]=rgba[p];
+        samples[o++]=rgba[p+1];
+        samples[o++]=rgba[p+2];
+        samples[o++]=255;
+      }
+    }
+    const globalPalette=quantize(samples.subarray(0,o),256,{format:"rgb444"});
+
+    const gif=GIFEncoder();
+    const frameDelay=Math.round((1000/EXPORT_FPS)*1.05);
+    for(const rgba of frames){
+      const idx=applyPalette(rgba,globalPalette,"rgb444");
+      gif.writeFrame(idx,w,h,{
+        palette:globalPalette,
+        delay:frameDelay,
+        repeat:0
+      });
+    }
     gif.finish();downloadBlob(new Blob([gif.bytes()],{type:"image/gif"}),"my-diary.gif");
     exportFinished(true);
   }catch(err){console.error(err);flash("GIF 실패: "+(err?.message||err));exportFinished(false);}
