@@ -3000,7 +3000,7 @@ function stableDitherRGBA(rgba,w,h){
     [3,11,1,9],
     [15,7,13,5]
   ];
-  const strength=0.8;
+  const strength=0;
   for(let y=0;y<h;y++){
     for(let x=0;x<w;x++){
       const p=(y*w+x)*4;
@@ -3047,6 +3047,79 @@ function stabilizeStaticGifPixels(frames,w,h,threshold=10){
   return frames;
 }
 
+
+/* ---------- v101: deterministic GIF palette for colorful photos ---------- */
+function makeStableRGB332Palette(){
+  const pal=[];
+  for(let r=0;r<8;r++){
+    for(let g=0;g<8;g++){
+      for(let b=0;b<4;b++){
+        pal.push([
+          Math.round(r*255/7),
+          Math.round(g*255/7),
+          Math.round(b*255/3)
+        ]);
+      }
+    }
+  }
+  return pal; // exactly 256 colors
+}
+
+function mapStableRGB332(rgba){
+  const px=rgba.length/4;
+  const idx=new Uint8Array(px);
+  for(let i=0,p=0;i<rgba.length;i+=4,p++){
+    const r=rgba[i], g=rgba[i+1], b=rgba[i+2];
+    /* deterministic nearest RGB332 cell — no frame-dependent decision */
+    const ri=Math.min(7,Math.round(r*7/255));
+    const gi=Math.min(7,Math.round(g*7/255));
+    const bi=Math.min(3,Math.round(b*3/255));
+    idx[p]=(ri<<5)|(gi<<2)|bi;
+  }
+  return idx;
+}
+
+
+/* ---------- v102: lock static diary/page pixels across GIF frames ---------- */
+function lockStaticDiaryPixels(frames,w,h){
+  if(frames.length<2)return frames;
+  const base=frames[0];
+  const count=frames.length;
+  const len=base.length;
+
+  /* A static pixel may vary a few RGB levels because DOM rasterization,
+     antialiasing and shadows are recomputed every capture. Real animated pixels
+     vary substantially more. Lock only low-variance pixels to frame 0 exactly. */
+  for(let p=0;p<len;p+=4){
+    let sumR=0,sumG=0,sumB=0;
+    let minR=255,minG=255,minB=255,maxR=0,maxG=0,maxB=0;
+
+    for(let f=0;f<count;f++){
+      const a=frames[f];
+      const r=a[p],g=a[p+1],b=a[p+2];
+      sumR+=r;sumG+=g;sumB+=b;
+      if(r<minR)minR=r;if(r>maxR)maxR=r;
+      if(g<minG)minG=g;if(g>maxG)maxG=g;
+      if(b<minB)minB=b;if(b>maxB)maxB=b;
+    }
+
+    const range=Math.max(maxR-minR,maxG-minG,maxB-minB);
+
+    /* 18 is intentionally generous: paper/background/shadow raster noise gets
+       frozen; actual movement/photo transitions still exceed it. */
+    if(range<=18){
+      const r=base[p],g=base[p+1],b=base[p+2];
+      for(let f=1;f<count;f++){
+        frames[f][p]=r;
+        frames[f][p+1]=g;
+        frames[f][p+2]=b;
+        frames[f][p+3]=255;
+      }
+    }
+  }
+  return frames;
+}
+
 $("#exportGIFFile").onclick=async()=>{
   if(!exportStarted())return;
   try{
@@ -3066,34 +3139,24 @@ $("#exportGIFFile").onclick=async()=>{
       frames.push(stableDitherRGBA(rgba,w,h));
     });
 
-    /* Remove tiny html2canvas/raster AA variations from areas that are not
-       actually moving. This is what stops the remaining "번쩍번쩍" around
-       stationary paper, borders, shadows and text. */
+    /* The diary/page/background are fixed UI. Lock their low-variance pixels
+       to the first captured frame so they literally cannot flash between frames. */
+    lockStaticDiaryPixels(frames,w,h);
+
+    /* Keep the smaller cleanup pass for residual antialiasing noise. */
     stabilizeStaticGifPixels(frames,w,h,10);
 
-    /* Build ONE palette from evenly sampled pixels across the whole animation.
-       Every frame now maps to exactly the same 256 colors. */
-    const sampleStride=12;
-    let samplePixels=0;
-    for(const rgba of frames) samplePixels+=Math.ceil((rgba.length/4)/sampleStride);
-    const samples=new Uint8Array(samplePixels*4);
-    let o=0;
-    for(const rgba of frames){
-      for(let p=0;p<rgba.length;p+=4*sampleStride){
-        samples[o++]=rgba[p];
-        samples[o++]=rgba[p+1];
-        samples[o++]=rgba[p+2];
-        samples[o++]=255;
-      }
-    }
-    const globalPalette=quantize(samples.subarray(0,o),256,{format:"rgb565"});
+    /* v101: colorful photos can still "pump" against an adaptive 256-color
+       palette. Use a fixed RGB332 palette instead: the same source RGB always
+       becomes the same GIF color/index on every frame. */
+    const stablePalette=makeStableRGB332Palette();
 
     const gif=GIFEncoder();
     const frameDelay=Math.round((1000/EXPORT_FPS)*1.05);
     for(const rgba of frames){
-      const idx=applyPalette(rgba,globalPalette,"rgb565");
+      const idx=mapStableRGB332(rgba);
       gif.writeFrame(idx,w,h,{
-        palette:globalPalette,
+        palette:stablePalette,
         delay:frameDelay,
         repeat:0
       });
