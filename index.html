@@ -2047,7 +2047,7 @@ C71 15 58 32 50 49 Z"/>
 
 <script>
 const EXPORT_TARGET_WIDTH=700;
-const EXPORT_SUPERSAMPLE=3;
+const EXPORT_SUPERSAMPLE=4;
 
 function exportFinalSize(){
   const r=stage.getBoundingClientRect();
@@ -2061,13 +2061,29 @@ function exportRenderScale(){
 }
 function downsampleExportCanvas(srcCanvas){
   const {w,h}=exportFinalSize();
+
+  /* Progressive downsampling gives cleaner text, SVG edges, rotated photos and
+     shadows than collapsing a 4x render directly to final size in one pass. */
+  let current=srcCanvas;
+  while(current.width > w*1.8 || current.height > h*1.8){
+    const next=document.createElement("canvas");
+    next.width=Math.max(w,Math.round(current.width/2));
+    next.height=Math.max(h,Math.round(current.height/2));
+    const nctx=next.getContext("2d",{alpha:true});
+    nctx.imageSmoothingEnabled=true;
+    nctx.imageSmoothingQuality="high";
+    nctx.clearRect(0,0,next.width,next.height);
+    nctx.drawImage(current,0,0,current.width,current.height,0,0,next.width,next.height);
+    current=next;
+  }
+
   const out=document.createElement("canvas");
   out.width=w; out.height=h;
   const ctx=out.getContext("2d",{alpha:true});
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality="high";
   ctx.clearRect(0,0,w,h);
-  ctx.drawImage(srcCanvas,0,0,srcCanvas.width,srcCanvas.height,0,0,w,h);
+  ctx.drawImage(current,0,0,current.width,current.height,0,0,w,h);
   return out;
 }
 function captureDOM(element, options={}){
@@ -2896,23 +2912,47 @@ async function prepareAnimatedImages(){
 function clearGifKeys(){stage.querySelectorAll("[data-export-gif-key]").forEach(x=>x.removeAttribute("data-export-gif-key"));}
 
 async function collectRealFrames(onFrame){
-  const old=toast.style.visibility;toast.style.visibility="hidden";
+  const old=toast.style.visibility;
+  toast.style.visibility="hidden";
   const gifFrames=await prepareAnimatedImages();
+
   resetRealAnimation();
   await sleep(60);
   playRealAnimation();
-  const start=performance.now(), interval=1000/EXPORT_FPS;
+
+  /* Let the exact same preview animations instantiate, then freeze them.
+     We advance their timeline ourselves, so rendering speed cannot accelerate
+     or skip the animation in the exported GIF. */
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  const anims=stage.getAnimations({subtree:true});
+  anims.forEach(a=>{ try{a.pause();a.currentTime=0;}catch(_){} });
+
+  const interval=1000/EXPORT_FPS;
+  const frameCount=Math.ceil(EXPORT_DURATION/interval);
+
   try{
-    for(let i=0;i<Math.ceil(EXPORT_DURATION/interval);i++){
-      const target=i*interval, wait=target-(performance.now()-start);
-      if(wait>0)await sleep(wait);
-      /* 실제 화면에서 현재 transition 값을 읽고 clone에 고정해 캡처 */
-      const elapsed=performance.now()-start;
-      const hiShot=await captureStage(exportRenderScale(),gifFrames,elapsed); const shot=downsampleExportCanvas(hiShot);
-      await onFrame(shot,i,elapsed);
+    for(let i=0;i<frameCount;i++){
+      const elapsed=i*interval;
+
+      /* Match "움직이는 미리보기": sample the same CSS transition/keyframe
+         animations at the exact intended time instead of wall-clock capture time. */
+      anims.forEach(a=>{
+        try{
+          const timing=a.effect?.getComputedTiming?.();
+          const end=Number.isFinite(timing?.endTime) ? timing.endTime : EXPORT_DURATION;
+          a.currentTime=Math.min(elapsed,end);
+        }catch(_){}
+      });
+
+      await new Promise(r=>requestAnimationFrame(r));
+      const hiShot=await captureStage(exportRenderScale(),gifFrames,elapsed);
+      const shot=downsampleExportCanvas(hiShot);
+      await onFrame(shot,i,elapsed,interval);
     }
   }finally{
-    clearGifKeys();toast.style.visibility=old;
+    anims.forEach(a=>{try{a.cancel()}catch(_){}});
+    clearGifKeys();
+    toast.style.visibility=old;
     $$(".charm").forEach(el=>{el.classList.remove("no-anim");el.classList.add("revealed")});
     if(pageLogo){pageLogo.style.transition="";pageLogo.classList.add("revealed")}
     $$(".keyring-object").forEach(k=>{k.style.animation="";k.style.transform="";k.classList.remove("jingle");});
@@ -2937,13 +2977,13 @@ $("#exportGIFFile").onclick=async()=>{
       if(!w){w=shot.width;h=shot.height;}
       const sctx=shot.getContext("2d",{willReadFrequently:true});
       const rgba=sctx.getImageData(0,0,w,h).data;
-      const pal=quantize(rgba,256,{format:"rgb565"});
-      const idx=applyPalette(rgba,pal,"rgb565");
+      const pal=quantize(rgba,256,{format:"rgb444"});
+      const idx=applyPalette(rgba,pal,"rgb444");
       /* Use the ACTUAL measured gap between captures as this frame's delay, not a fixed
          1000/FPS value — capturing is slower than the target interval, so a fixed delay
          compresses the real animation time and makes the exported GIF play too fast. */
       /* v96: fixed, slower playback. Capture latency no longer speeds the GIF up. */
-      const frameDelay=125;
+      const frameDelay=Math.round((1000/EXPORT_FPS)*1.05);
       prevElapsed=elapsed;
       gif.writeFrame(idx,w,h,{palette:pal,delay:frameDelay,repeat:0});
     });
