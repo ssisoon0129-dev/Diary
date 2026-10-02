@@ -339,6 +339,21 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 .polaroid{background:#fff;padding:13px 13px 44px;box-shadow:0 2px 3px rgba(40,35,25,.3), 0 8px 20px rgba(50,50,40,.22);width:248px}
 .photo-window{width:222px;height:222px;background:#e3ddcd;overflow:hidden;position:relative;cursor:zoom-in}
 .photo-window img{width:100%;height:100%;object-fit:contain;transform-origin:center;pointer-events:none;background:#efe9da}
+
+.photostrip2{
+  width:208px;background:var(--theme);padding:16px 16px 48px;border-radius:10px;
+  box-shadow:0 8px 20px rgba(50,50,40,.26);
+}
+.photostrip2 .strip2-cell{
+  width:100% !important;height:auto !important;aspect-ratio:16/9;background:#d9d9d9;overflow:hidden;position:relative;cursor:zoom-in;
+}
+.photostrip2 .strip2-cell + .strip2-cell{margin-top:14px}
+.photostrip2 .strip2-cell img{width:100%;height:100%;object-fit:contain;transform-origin:center;pointer-events:none;background:#e3e3e3}
+.strip2-plus{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#9aa0ab;font-size:34px;font-weight:300;pointer-events:none;
+}
+.strip2-cell:not([data-empty]) .strip2-plus{display:none}
 .polaroid .cap{
   position:absolute;bottom:10px;left:13px;width:222px;border:0;background:transparent;text-align:center;
   font-family:var(--font-hand);font-size:23px;color:var(--ink);outline:none;
@@ -1851,7 +1866,8 @@ C71 15 58 32 50 49 Z"/>
         <div class="section-body"><div class="section-inner">
           <button class="asset add" id="addPolaroidBtn" style="width:100%;aspect-ratio:2.6">＋ 사진 추가</button>
           <input id="photoFile" type="file" accept="image/*" hidden>
-          <p class="note">폴라로이드는 드래그로 이동해요. 사진 위에서 휠로 확대·축소하고 드래그하면 사진 속 위치를 조정할 수 있어요. 아래 글자는 클릭해서 바로 수정하세요.</p>
+          <button class="asset add" id="addStrip2Btn" style="width:100%;aspect-ratio:2.6;margin-top:8px">＋ 2컷 사진 추가</button>
+          <p class="note">폴라로이드는 드래그로 이동해요. 사진 위에서 휠로 확대·축소하고 드래그하면 사진 속 위치를 조정할 수 있어요. 아래 글자는 클릭해서 바로 수정하세요. 2컷 사진은 빈 칸을 눌러서 사진을 하나씩 채울 수 있어요.</p>
         </div></div>
       </section>
 
@@ -2053,6 +2069,7 @@ C71 15 58 32 50 49 Z"/>
 <input id="loadFile" type="file" accept=".json,application/json" hidden>
 <input id="charmPhotoFile" type="file" accept="image/*" hidden>
 <input id="replacePhotoFile" type="file" accept="image/*" hidden>
+<input id="stripCellFile" type="file" accept="image/*" hidden>
 <div id="pngStage" style="position:fixed;left:-9999px;top:0"></div>
 
 <script>
@@ -2504,22 +2521,23 @@ function getBakedShadowURL(w,h,blur=14,alpha=.3,radius=18){
 }
 
 /* ---------- polaroid ---------- */
-$("#addPolaroidBtn").onclick=()=>$("#photoFile").click();
-$("#photoFile").onchange=e=>{
-  const f=e.target.files[0]; if(!f)return;
-  const url=URL.createObjectURL(f);
-  const el=makeObj("obj polaroid",stage.clientWidth*.48,stage.clientHeight*.18,248,299);
-  bringDiaryLayerToFront(el);
-  el.dataset.scale="1"; el.dataset.rotate="-6"; el.style.rotate="-6deg";
-  el.insertAdjacentHTML("beforeend",`<div class="photo-window"><img src="${url}" data-zoom="1" data-x="0" data-y="0"></div><div class="cap" contenteditable="true">우리의 순간</div>`);
-  const win=el.querySelector(".photo-window"), img=win.querySelector("img");
+function photoTransform(img){img.style.transform=`translate(${img.dataset.x||0}px,${img.dataset.y||0}px) scale(${img.dataset.zoom||1})`}
+/* Shared by the single polaroid's photo-window and the 2-cut frame's cells:
+   wheel to zoom, drag to pan, click (no drag) to replace the photo. Rotation
+   is compensated using the PARENT object's current tilt so panning always
+   follows the mouse regardless of how the card itself is rotated. */
+function wirePhotoWindow(win,el){
+  if(win.dataset.wired)return; win.dataset.wired="1";
+  const getImg=()=>win.querySelector("img");
   win.addEventListener("wheel",ev=>{
+    const img=getImg(); if(!img)return;
     ev.preventDefault(); ev.stopPropagation();
     const z=Math.max(1,Math.min(5,(+img.dataset.zoom||1)+(ev.deltaY<0?.12:-.12)));
     img.dataset.zoom=z; photoTransform(img);
   },{passive:false});
   win.addEventListener("dragstart",ev=>ev.preventDefault());
   win.addEventListener("pointerdown",ev=>{
+    const img=getImg(); if(!img)return;
     ev.preventDefault(); ev.stopPropagation(); win.setPointerCapture(ev.pointerId);
     const sx=ev.clientX, sy=ev.clientY, ox=+img.dataset.x||0, oy=+img.dataset.y||0;
     const theta=(+el.dataset.rotate||0)*Math.PI/180, cosT=Math.cos(theta), sinT=Math.sin(theta);
@@ -2537,9 +2555,52 @@ $("#photoFile").onchange=e=>{
     };
     win.addEventListener("pointermove",mv); win.addEventListener("pointerup",up); win.addEventListener("pointercancel",up);
   });
+}
+$("#addPolaroidBtn").onclick=()=>$("#photoFile").click();
+$("#photoFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const url=URL.createObjectURL(f);
+  const el=makeObj("obj polaroid",stage.clientWidth*.48,stage.clientHeight*.18,248,299);
+  bringDiaryLayerToFront(el);
+  el.dataset.scale="1"; el.dataset.rotate="-6"; el.style.rotate="-6deg";
+  el.insertAdjacentHTML("beforeend",`<div class="photo-window"><img src="${url}" data-zoom="1" data-x="0" data-y="0"></div><div class="cap" contenteditable="true">우리의 순간</div>`);
+  wirePhotoWindow(el.querySelector(".photo-window"),el);
   e.target.value="";
 };
-function photoTransform(img){img.style.transform=`translate(${img.dataset.x||0}px,${img.dataset.y||0}px) scale(${img.dataset.zoom||1})`}
+
+/* ---------- 2-cut photo strip ---------- */
+function createStrip2(){
+  const el=makeObj("obj photostrip2",stage.clientWidth*.46,stage.clientHeight*.18,208,276);
+  bringDiaryLayerToFront(el);
+  el.dataset.scale="1"; el.dataset.rotate="-4"; el.style.rotate="-4deg";
+  el.insertAdjacentHTML("beforeend",
+    `<div class="strip2-cell photo-window" data-empty="1"><div class="strip2-plus">＋</div></div>`+
+    `<div class="strip2-cell photo-window" data-empty="1"><div class="strip2-plus">＋</div></div>`);
+  el.querySelectorAll(".strip2-cell").forEach(cell=>{
+    cell.addEventListener("pointerdown",ev=>{
+      if(!cell.dataset.empty)return; /* once filled, wirePhotoWindow takes over */
+      ev.preventDefault(); ev.stopPropagation();
+    });
+    cell.addEventListener("click",ev=>{
+      if(!cell.dataset.empty)return;
+      ev.stopPropagation();
+      stripCellTarget={cell,el};
+      $("#stripCellFile").click();
+    });
+  });
+}
+$("#addStrip2Btn").onclick=createStrip2;
+let stripCellTarget=null;
+$("#stripCellFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f||!stripCellTarget)return;
+  const {cell,el}=stripCellTarget;
+  cell.innerHTML=`<img src="${URL.createObjectURL(f)}" data-zoom="1" data-x="0" data-y="0">`;
+  delete cell.dataset.empty;
+  wirePhotoWindow(cell,el);
+  stripCellTarget=null;
+  pushHistory();
+  e.target.value="";
+};
 let replaceTargetImg=null;
 $("#replacePhotoFile").onchange=e=>{
   const f=e.target.files[0]; if(!f||!replaceTargetImg)return;
