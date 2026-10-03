@@ -189,7 +189,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 /* ---------- stage ---------- */
 .stage-wrap{position:relative}
 .stage{
-  position:relative;height:calc(100vh - 158px);min-height:560px;border-radius:var(--r-lg);
+  position:relative;width:100%;height:auto;aspect-ratio:700 / 482;min-height:0;border-radius:var(--r-lg);
   background:
     radial-gradient(circle at 20% 15%, var(--theme-a20), transparent 45%),
     var(--paper-panel);
@@ -444,7 +444,7 @@ input[type=color]{width:40px;height:38px;border:1px solid var(--line);border-rad
 
 @media (max-width:880px){
   .workspace{grid-template-columns:1fr}
-  .stage{height:64vh}
+  .stage{height:auto;aspect-ratio:700 / 482;min-height:0}
   .topbar{max-width:none}
   .charm-photo{width:160px}
 }
@@ -2072,14 +2072,11 @@ const EXPORT_TARGET_WIDTH=700;
 const EXPORT_SUPERSAMPLE=4;
 
 function exportFinalSize(){
-  const r=stage.getBoundingClientRect();
-  const w=EXPORT_TARGET_WIDTH;
-  const h=Math.max(1,Math.round(w*(r.height/r.width)));
-  return {w,h};
+  return {w:700,h:482};
 }
 function exportRenderScale(){
   const r=stage.getBoundingClientRect();
-  return r.width>0 ? (EXPORT_TARGET_WIDTH*EXPORT_SUPERSAMPLE)/r.width : EXPORT_SUPERSAMPLE;
+  return r.width>0 ? (700*EXPORT_SUPERSAMPLE)/r.width : EXPORT_SUPERSAMPLE;
 }
 function downsampleExportCanvas(srcCanvas){
   const {w,h}=exportFinalSize();
